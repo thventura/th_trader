@@ -1,0 +1,20 @@
+{
+    "installCommand": "cd trademaster && npm install",
+    "buildCommand": "cd trademaster && npm run build",
+    "outputDirectory": "trademaster/dist",
+    "framework": null,
+    "rewrites": [
+        {
+            "source": "/api/vorna/:path*",
+            "destination": "/api/vorna?_path=:path*"
+        },
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/$1"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}

@@ -1,0 +1,279 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-slate-950: #000000;
+  --color-slate-900: #0a0a0a;
+  --color-apex-trader-primary: #34de00;
+  --color-emerald-500: #10b981;
+  --color-red-500: #ef4444;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-50 font-sans;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  html.light body {
+    @apply bg-gray-50 text-slate-900;
+  }
+}
+
+.glass-card {
+  @apply bg-slate-900/50 backdrop-blur-sm rounded-2xl transition-all duration-300;
+  border: 1px solid rgba(52, 222, 0, 0.15);
+  background-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+.glass-card:hover {
+  border-color: rgba(52, 222, 0, 0.3);
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5), 0 0 20px rgba(52, 222, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+html.light .glass-card {
+  @apply bg-white shadow-sm;
+  border: 1px solid rgba(52, 222, 0, 0.3);
+  background-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+html.light .glass-card:hover {
+  border-color: rgba(52, 222, 0, 0.5);
+  box-shadow: 0 10px 25px -5px rgba(52, 222, 0, 0.15);
+}
+
+.neon-border-wrapper {
+  position: relative;
+  border-radius: 28px;
+  padding: 4px;
+  overflow: hidden;
+  z-index: 10;
+  box-shadow: 0 0 40px rgba(52, 222, 0, 0.15);
+}
+
+.neon-border-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -150%;
+  background: conic-gradient(from 0deg,
+      transparent 0 330deg,
+      #34de00 360deg);
+  animation: neon-spin 3s linear infinite;
+  z-index: -1;
+}
+
+.login-card-container {
+  @apply rounded-[24px];
+  position: relative;
+  background: #000;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #34de00;
+  z-index: 1;
+}
+
+@keyframes neon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spotlight {
+  0% {
+    opacity: 0;
+    transform: translate(-72%, -62%) scale(0.5);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -40%) scale(1);
+  }
+}
+
+.animate-spotlight {
+  animation: spotlight 2s ease 0.75s 1 forwards;
+}
+
+.loader {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #34de00;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes grid {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(calc(var(--cell-size)));
+  }
+}
+
+.animate-grid {
+  animation: grid 15s linear infinite;
+}
+
+.stars {
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, rgba(52, 222, 0, 0.4), rgba(0, 0, 0, 0)),
+    radial-gradient(2px 2px at 40px 70px, rgba(52, 222, 0, 0.3), rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 90px 40px, rgba(127, 255, 0, 0.5), rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 130px 80px, rgba(52, 222, 0, 0.4), rgba(0, 0, 0, 0)),
+    radial-gradient(2px 2px at 160px 120px, rgba(127, 255, 0, 0.3), rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 200px 160px, rgba(52, 222, 0, 0.5), rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 50px 160px, rgba(255, 255, 255, 0.15), rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 180px 50px, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0));
+  background-repeat: repeat;
+  background-size: 250px 250px;
+  animation: twinkle 5s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 0.4;
+  }
+}
+
+/* ===== NAV GLIDER STYLES ===== */
+.sidebar-glider-container {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(0deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(27, 27, 27, 1) 50%,
+      rgba(0, 0, 0, 0) 100%);
+  z-index: 10;
+}
+
+.sidebar-glider {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+      rgba(52, 222, 0, 0.1) 0%,
+      transparent 100%);
+  z-index: 5;
+}
+
+.sidebar-glider::before {
+  content: "";
+  position: absolute;
+  height: 60%;
+  width: 2px;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background: #34de00;
+  filter: blur(4px);
+  box-shadow: 0 0 15px #34de00;
+  opacity: 0.6;
+}
+
+.sidebar-glider::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  height: 100%;
+  width: 2px;
+  background: linear-gradient(0deg,
+      transparent 0%,
+      #34de00 50%,
+      transparent 100%);
+  z-index: 11;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* Float animation for 3D Robot */
+@keyframes float-slow {
+
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-15px) scale(1.02);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+/* ===== REFINED NEON LOGIN EFFECTS ===== */
+.pulsing-background-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at center, rgba(52, 222, 0, 0.25) 0%, transparent 1.5px);
+  background-size: 24px 24px;
+  animation: background-pulse 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
+}
+
+@keyframes background-pulse {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+.neon-bg-overlay-dark {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.8) 100%);
+  pointer-events: none;
+  z-index: 2;
+}

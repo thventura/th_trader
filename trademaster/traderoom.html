@@ -1,0 +1,2319 @@
+<!DOCTYPE html>
+<html translate="no">
+<head>
+    <base href="https://pumabroker.com/" />
+    <title>Puma Broker</title>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="google" value="notranslate">
+    <link rel="icon" href="logo/icon.png"  />
+        <link href="css/theme.css" rel="stylesheet" type="text/css"/>
+    <link href="css/alertas.css" rel="stylesheet" type="text/css"/>
+        
+    <link href="css/chat.css?192" rel="stylesheet" type="text/css"/>
+    <link rel="stylesheet" href="css/jquery-ui.css">
+    <link rel="stylesheet" href="css/jquery.modal.min.css" />
+
+    <script type="text/javascript" src="js/lib/jquery-3.7.1.min.js"></script>
+
+
+    <script type="text/javascript" src="js/lib/jquery-ui.min.js"></script> 
+    <script type="text/javascript" src="js/lib/jquery.mask.min.js"></script> 
+    <script type="text/javascript" src="js/lib/jquery.modal.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/lib/jquery.cookie.js"></script>
+        <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0">
+        
+    <script type="text/javascript" src="chart/charting_library/charting_library.standalone.js"></script>
+    <script type="text/javascript" src="chart/datafeed.js?192"></script>
+        
+    
+    <script type="text/javascript" src="js/account_balance.js?192"></script> 
+    <script type="text/javascript" src="js/lib/jquery.animatenumber.min.js?192"></script>
+    <script type="text/javascript" src="js/account.js?192"></script>	
+
+    <script type="text/javascript" src="js/lib/jquery-3.72.js?192"></script>	
+    <script type="text/javascript" src="js/chartbar.js?192"></script>
+
+    <script type="text/javascript" src="js/timeopen.js?192"></script>
+    
+    <link href="css/account.css?192" rel="stylesheet" type="text/css"/>
+
+        
+    <script>
+        const vip = 0;
+
+                
+    </script>
+
+
+</head>
+
+
+ 
+<body>
+
+
+<script>    
+        let bonusDeposito = 0;
+        let bonusInterval = 0;
+        let deposito_minimo = 0;
+        let bonus_maximo = 0;
+        let rolagem = 1;
+        let expiracao = 0;
+</script>
+	
+	
+ <div class="loader">
+    <div class="fundo"></div>
+    <div class="load">
+        <img src="../../logo/logo.png" class="logo-animada"/>
+    </div>  
+
+</div>
+
+   
+<div class="clear"></div>
+<script>
+ function nextText() {
+    $('.loadtext').html(messLoad.pop()).fadeIn(0).delay(600).fadeOut(0, nextText);
+};
+var messLoad = [
+    "Inicialização...",
+    "Conexão...",
+    "Carregando..."
+].reverse();
+
+$('.loadtext').hide();
+nextText();
+</script>
+
+<div id="page" class="page"></div>
+
+<div class="head"
+    style=" display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
+
+    <div class="head_leftt"
+        style="display: flex; flex-direction: row; align-items: center;">
+
+         <a style="display: block; cursor: pointer;" class="login__logo" onclick="window.location.reload();">
+            <img style="height: 45px; margin: 0 10px;" src="logo/logo.png" alt="Logo">
+        </a>
+
+
+        <div>
+
+            <div class="tabs"
+                style="display: flex; flex-direction: row; align-items: center;">
+                <div id="tabs"></div>
+                <!-- <div class="add_tab bodyclick" onclick="addTab()"></div> -->
+                <div onclick="addTab()" class="add_tab bodyclick" style="width: 30px;">
+                    <iconify-icon icon="solar:add-square-outline" class="iconHover"
+                        style="color: #9b9fa8; font-size: 25px; cursor: pointer;">
+                    </div>
+                    <!-- <div class="clear"></div> -->
+                </div>
+            </div>
+
+            <div class="popup curreny_table bodyclick_hide" id="add_tab">
+	  
+    <div class="bodyclick"> 
+    
+    <div class="title">Ativos
+           <a class="close" onclick="closeblock()"></a>
+     </div>
+
+     <div class="category">
+         <!-- Abertos -->
+         <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up selected" onclick="getCurrencyList(this, 'open',  1)">
+            <iconify-icon icon="oui:clock" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Abertos</div>
+        </div>
+
+         <!-- Forex -->
+         <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,7,  1)">
+            <iconify-icon icon="hugeicons:coins-swap" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Forex</div>
+        </div>
+
+        <!-- Crypto -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,8, 1)">
+            <iconify-icon icon="hugeicons:bitcoin-ellipse" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Cripto</div>
+        </div>
+
+        <!-- Stock -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,9, 1)">
+            <iconify-icon icon="bi:bank" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name ">Ações</div>
+        </div>
+
+        <!-- Stock -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,10, 1)">
+            <iconify-icon icon="icon-park-outline:heavy-metal" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name ">Metais</div>
+        </div>
+
+        <!-- Stock -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,11, 1)">
+            <iconify-icon icon="tabler:chart-line" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name ">Indices</div>
+        </div>
+
+        <!-- Favorits -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,'fav',1)">
+            <iconify-icon icon="solar:star-line-duotone" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Favoritos</div>
+        </div>
+    
+           
+     
+
+
+     </div>
+
+     <div class="currency"></div>
+
+
+     <div class="clear"></div>
+
+    </div>
+  </div>
+
+
+
+
+        </div>
+
+
+        <div class="head_rightt"
+            style="display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 15px;">
+
+        
+                        <!-- COMPONENTE (reutilizável) -->
+  <div class="account-switch" data-hide-balance="false" data-component="account-switch" data-active="real">
+    <!-- TRIGGER -->
+    <button class="account-trigger" type="button" data-role="trigger" aria-expanded="false">
+      <div class="trigger-info">
+        <div class="trigger-label" data-role="trigger-label">Conta Demo</div>
+
+        <!-- money + tick -->
+        <span class="money trigger-balance" data-role="trigger-balance">
+          <span class="value">R$ 10.000,00</span>
+          <span class="tick" data-role="tick">▲</span>
+        </span>
+      </div>
+
+      <svg class="trigger-chevron" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m6 9 6 6 6-6"></path>
+      </svg>
+    </button>
+
+    <!-- DROPDOWN -->
+    <div class="account-dropdown" data-role="dropdown">
+      <div class="account-header">
+        <span class="account-title">Contas</span>
+
+        <button class="icon-btn eye-toggle" type="button" data-role="toggle-hide" title="Ocultar saldo" aria-label="Ocultar saldo">
+          <!-- eye -->
+          <svg class="eye-on" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+
+          <!-- eye-off -->
+          <svg class="eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-6.5 0-10-7-10-7a21.77 21.77 0 0 1 5.06-6.06"></path>
+            <path d="M9.9 4.24A10.99 10.99 0 0 1 12 5c6.5 0 10 7 10 7a21.73 21.73 0 0 1-4.12 5.04"></path>
+            <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"></path>
+            <path d="M1 1l22 22"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="account-list" data-role="list">
+
+        <!-- REAL -->
+        <button class="account-item is-active" data-type="real" type="button">
+          <div class="account-row">
+            <div class="account-info">
+              <span class="account-label real">Conta Real</span>
+
+              <span class="money" data-role="money" data-type="real">
+                <span class="value" data-role="balance" data-type="real">R$ 2.467,00</span>
+                <span class="tick" data-role="tick">▲</span>
+              </span>
+            </div>
+
+            <div class="btn btn-deposit" type="button" data-action="deposit">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path>
+                <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path>
+              </svg>
+              Depositar
+            </div>
+          </div>
+
+          <div class="account-details" data-role="real-details">
+            <div class="detail-row">
+              <span class="label">Saldo:</span>
+              <span class="money">
+                <span class="value" data-role="real-saldo">R$ 2.217,00</span>
+                <span class="tick" data-role="tick">▲</span>
+              </span>
+            </div>
+
+            <div class="detail-row bonus">
+              <span class="label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="8" width="18" height="4" rx="1"></rect>
+                  <path d="M12 8v13"></path>
+                  <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path>
+                  <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path>
+                </svg>
+                Bônus:
+              </span>
+
+              <span class="money">
+                <span class="value" data-role="real-bonus">R$ 250,00</span>
+                <span class="tick" data-role="tick">▲</span>
+              </span>
+            </div>
+
+            <div class="detail-row exp">
+                <span class="label">
+                    <!-- clock -->
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                    </svg>
+                    Expira em:
+                </span>
+
+                <span class="money">
+                    <span class="value exp-value" data-role="real-expiration">--/--/----, --:--:--</span>
+                    <span class="tick" data-role="tick">▲</span>
+                </span>
+            </div>
+          </div>
+        </button>
+
+        <!-- DEMO -->
+        <button class="account-item" data-type="demo" type="button">
+          <div class="account-row">
+            <div class="account-info">
+              <span class="account-label demo">Conta Demo</span>
+
+              <span class="money" data-role="money" data-type="demo">
+                <span class="value" data-role="balance" data-type="demo">R$ 10.000,00</span>
+                <span class="tick" data-role="tick">▲</span>
+              </span>
+            </div>
+
+            <div class="btn btn-reload" type="button" data-action="reload">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M8 16H3v5"></path>
+              </svg>
+              Recarregar
+            </div>
+          </div>
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+<style>
+    :root{
+        --zinc-950:#00070a;
+        --zinc-900:#18181b;
+        --zinc-800:#27272a;
+        --zinc-700:#3f3f46;
+        --zinc-500:#71717a;
+        --zinc-400:#a1a1aa;
+        --zinc-300:#d4d4d8;
+        --zinc-200:#e4e4e7;
+        --white:#fff;
+
+        --emerald-500:#10b981;
+        --emerald-600:#059669;
+        --emerald-400:#34d399;
+
+        --rose-400:#fb7185;
+        --rose-500:#f43f5e;
+
+        --amber-400:#fbbf24;
+
+        /* trader effect tuning */
+        --flash-ms: 120ms;
+        --pulse-ms: 180ms;
+    }
+
+
+    /* =========================
+        COMPONENT WRAPPER
+    ========================== */
+    .account-switch{
+        position: relative;
+        display: inline-block;
+    }
+
+    /* =========================
+        TRIGGER BUTTON
+    ========================== */
+    .account-trigger{
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 8px 8px 12px;
+        background: rgba(9, 9, 11, 0.5);
+        border-radius: 8px;
+        border: 1px solid rgba(39,39,42,.35);
+        cursor: pointer;
+        transition: background .2s ease, border-color .2s ease;
+        user-select: none;
+    }
+
+    .account-trigger:hover{
+        background: rgba(39, 39, 42, 0.5);
+        border-color: rgba(39,39,42,.85);
+    }
+
+    .trigger-info{
+        display:flex;
+        flex-direction:column;
+        align-items:flex-start;
+        gap:2px;
+    }
+
+    .trigger-label{
+        color: var(--zinc-400);
+        font-size: 0.65rem;
+        line-height: 1.1;
+    }
+
+    .trigger-balance{
+        font-size: 0.875rem;
+        line-height: 1.2;
+        font-weight: 650;
+        letter-spacing: .1px;
+    }
+
+    .trigger-chevron{
+        width:18px;
+        height:18px;
+        transition: transform .2s ease;
+    }
+
+    .account-trigger.is-open .trigger-chevron{
+        transform: rotate(180deg);
+    }
+
+    /* Cor dinâmica do trigger por conta ativa */
+    .account-switch[data-active="demo"] .trigger-balance,
+    .account-switch[data-active="demo"] .trigger-chevron{
+        color: var(--rose-400);
+    }
+    .account-switch[data-active="real"] .trigger-balance,
+    .account-switch[data-active="real"] .trigger-chevron{
+        color: var(--emerald-400);
+    }
+
+    /* =========================
+        DROPDOWN CONTAINER
+    ========================== */
+    .account-dropdown{
+        position:absolute;
+        right:0;
+        top:100%;
+        margin-top:8px;
+        width:288px;
+        background:var(--zinc-950);
+        border:1px solid var(--zinc-900);
+        border-radius:12px;
+        box-shadow: 0 25px 50px rgba(0,0,0,.62);
+        overflow:hidden;
+        z-index:50;
+        display:none;
+    }
+    .account-dropdown.is-open{ display:block; }
+
+    .account-header{
+        padding:12px 16px;
+        border-bottom:1px solid var(--zinc-800);
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+    }
+
+    .account-title{
+        font-size:14px;
+        font-weight:600;
+        color:var(--white);
+    }
+
+    .icon-btn{
+        padding:6px;
+        border-radius:8px;
+        border:none;
+        background:transparent;
+        color:var(--zinc-400);
+        cursor:pointer;
+        transition: background .2s, color .2s;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+    }
+    .icon-btn:hover{
+        background:var(--zinc-800);
+        color:var(--zinc-200);
+    }
+
+    .account-list{
+        padding:8px;
+        display:flex;
+        flex-direction:column;
+        gap:4px;
+    }
+
+    .account-item{
+        width:100%;
+        display:flex;
+        flex-direction:column;
+        padding:12px;
+        border-radius:10px;
+        border:1px solid transparent;
+        background:var(--zinc-900);
+        cursor:pointer;
+        text-align:left;
+        transition: background .18s, border-color .18s;
+    }
+    .account-item:hover{ background:var(--zinc-800); }
+
+    .account-item.is-active[data-type="real"]{
+        background: rgba(16,185,129,.10);
+        border-color: rgba(16,185,129,.30);
+    }
+    .account-item.is-active[data-type="demo"]{
+        background: rgba(244,63,94,.08);
+        border-color: rgba(244,63,94,.20);
+    }
+
+    .account-row{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        width:100%;
+        gap:12px;
+    }
+
+    .account-info{
+        display:flex;
+        flex-direction:column;
+        align-items:flex-start;
+        gap:4px;
+    }
+
+    .account-label{ font-size:12px; }
+    .account-label.real{ color: var(--emerald-400); }
+    .account-label.demo{ color: var(--rose-400); }
+
+    /* O texto do valor */
+    .money{
+        color:var(--white);
+        font-weight:650;
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        position: relative;
+    }
+
+    /* Setinha trader (aparece rápido e some) */
+    .tick{
+        font-size: 0.7rem;
+        line-height: 1;
+        opacity: 0;
+        transform: translateY(2px);
+        transition: opacity var(--flash-ms) ease, transform var(--flash-ms) ease;
+        user-select: none;
+    }
+
+    .tick.show{
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .tick.up{ color: var(--emerald-400); }
+    .tick.down{ color: var(--rose-400); }
+
+    /* Botões */
+    .btn{
+        display:flex;
+        align-items:center;
+        gap:6px;
+        padding:6px 12px;
+        border-radius:4px;
+        font-size:12px;
+        font-weight:600;
+        cursor:pointer;
+        border:1px solid transparent;
+        transition: background .2s, border-color .2s, color .2s, transform .12s;
+        white-space:nowrap;
+    }
+    .btn:active{ transform: translateY(1px); }
+
+    .btn-deposit{
+        background: var(--emerald-500);
+        color: var(--white);
+        border:none;
+    }
+    .btn-deposit:hover{ background: var(--emerald-600); }
+
+    .btn-reload{
+        background: transparent;
+        color: var(--rose-400);
+        border-color: rgba(244,63,94,.30);
+    }
+    .btn-reload:hover{ background: rgba(244,63,94,.10); }
+
+    /* Detalhes real */
+    .account-details{
+        margin-top:8px;
+        padding-top:8px;
+        border-top:1px solid rgba(63,63,70,.5);
+        width:100%;
+        font-size:12px;
+        display:none;
+    }
+
+    .detail-row{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin-top:4px;
+        color: var(--zinc-500);
+    }
+    .detail-row:first-child{ margin-top:0; }
+
+    .detail-row .value{ color: var(--zinc-300); }
+
+    .detail-row.bonus .label,
+    .detail-row.bonus .value{ color: var(--amber-400); }
+
+    .detail-row.exp .value { color: var(--zinc-400); }
+
+    .expired { color: var(--rose-400) !important; }
+
+    .detail-row .label{
+        display:flex;
+        align-items:center;
+        gap:6px;
+    }
+
+    /* Eye toggle icons */
+    .eye-off{ display:none; }
+    .is-hidden .eye-on{ display:none; }
+    .is-hidden .eye-off{ display:block; }
+
+    /* =========================
+        TRADER FLASH / PULSE
+    ========================== */
+    @keyframes flashUp {
+        0%   { box-shadow: 0 0 0 rgba(16,185,129,0); }
+        100% { box-shadow: 0 0 18px rgba(16,185,129,.25); }
+    }
+    @keyframes flashDown {
+        0%   { box-shadow: 0 0 0 rgba(244,63,94,0); }
+        100% { box-shadow: 0 0 18px rgba(244,63,94,.22); }
+    }
+    @keyframes pulse {
+        0%   { transform: translateY(0) scale(1); }
+        55%  { transform: translateY(-1px) scale(1.03); }
+        100% { transform: translateY(0) scale(1); }
+    }
+
+    .money.flash-up{
+        color: var(--emerald-400);
+        animation: flashUp var(--flash-ms) ease-out, pulse var(--pulse-ms) ease-out;
+        text-shadow: 0 0 14px rgba(16,185,129,.30);
+    }
+    .money.flash-down{
+        color: var(--rose-400);
+        animation: flashDown var(--flash-ms) ease-out, pulse var(--pulse-ms) ease-out;
+        text-shadow: 0 0 14px rgba(244,63,94,.28);
+    }
+
+</style>
+<script>
+    // ===== init all =====
+    const instances = [];
+    document.querySelectorAll('[data-component="account-switch"]').forEach(root => {
+        const inst = initAccountSwitch(root, {
+            numberAnimationDuration: 900,
+            flashMs: 300,
+            minDelta: 0.01,
+            onDeposit: () => openPage('/traderoom/payin'),
+            onReload: () => addDemo(),
+            onChange: (type) => $.ajax({ url:`/traderoom/setdemo/${type == 'demo' ? 1 : 0}?redir=false`, type: 'get'}),
+            onHideBalanceChange: (hide) => {
+                $.ajax({
+                    url: `/traderoom/save/hide-balance/${hide}`,
+                    type: 'get'
+                });
+            },
+            data: {
+                active: 'real', 
+                real: { label: "Conta Real", balance: 2116.22, saldo: 2116.22, bonus: 0, bonusExpiresAt: 0 },
+                demo: { label: "Conta Demo", balance: 10000 }
+            },
+            hideBalance: false,
+        });
+        instances.push(inst);
+    });
+
+</script>                        <div id="rolloverButton" class="bodyclick hidden" >
+                <div class="rollover_icons" onclick="rolloverMenu()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9.5 3h5A1.5 1.5 0 0 1 16 4.5A3.5 3.5 0 0 1 12.5 8h-1A3.5 3.5 0 0 1 8 4.5A1.5 1.5 0 0 1 9.5 3"/><path d="M12.5 21H8a4 4 0 0 1-4-4v-1a8 8 0 0 1 14.935-3.991M16 19h6m-3-3v6"/></g></svg>
+                    Bonus
+                </div>
+                <div class="rollover_menu">
+                    <div class="">
+                        <h4>Detalhes do bônus</h4>
+                        <div class="group_rollover">
+                            <div class="group_rollover-columns">
+                                <label>Valor do Bônus</label>
+                                <span id="rollover_bonus">R$ 0,00                            </div>
+                            <div class="group_rollover-columns">
+                                <label>Volume Restante</label>
+                                <span id="rollover_restante">R$ 0,00                            </div>
+
+                        </div>
+                        <div class="group_rollover">
+                            <div class="group_rollover-columns progress">
+                                <label>Volume de negociação</label>
+                                <span><b id="rollover_q_meta"> R$ 0,00 </b> / <b id="rollover_meta">R$ 0,00</b></span>
+                                <div class="rollover_progressbar">
+                                    <div style="width: 0%; "></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="group_rollover">
+                            <div class="group_rollover-columns">
+                                <label>Validade do Bônus</label>
+                                <span id="expiracao_bonus">31/12/1969 21:00:00</span>
+                            </div>
+                        </div>
+                        <div class="group_rollover">
+                            <div class="group_rollover-columns buttons">
+                                <!--<div class="faq_bonus">
+                                    Ir para as FAQ's
+                                </div>-->
+                                <div class="rollover_cancelled" onclick="openConfirmModalBonus()">
+                                    Cancelar Bônus
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <style>
+                #rolloverButton.hidden{
+                    display: none;
+                }
+
+                #rolloverButton {
+                    position:relative;
+                }
+
+                .rollover_icons {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    align-content: center;
+                    color: var(--form-border);
+                    border: 1px solid;
+                    border-radius: 5px;
+                    font-size: 9px;
+                    padding: 4px 10px;
+                    cursor: pointer;
+                }
+
+                .rollover_menu {
+                    display: none;
+                    position: absolute;
+                    right: 0px;
+                    top: 60px;
+                    background: var(--color1);
+                    width: 250px;
+                    color: rgb(155, 159, 168);
+                    font-size: 16px;
+                    border-radius: 5px;
+                    border: 1px solid var(--borda);
+                    box-shadow: rgb(12, 12, 12) 3px 3px 13px;
+                    margin-top: -10px;
+                    z-index: 30;
+                }
+
+                .rollover_menu > div {
+                    padding: 20px;
+                }
+
+                .group_rollover {
+                    display: flex;
+                    flex-direction: row;
+                    justify-content: space-evenly;
+                    align-items: center;
+                    font-size: 11px;
+                    margin-top: 15px;
+                }
+
+                .group_rollover-columns{
+                    display: flex;
+                    flex-direction: column;
+                    flex: 1;
+                    width: 100%;
+                    position: relative;
+                }
+
+                .group_rollover-columns span {
+                    font-size: 14px;
+                    font-weight: 900;
+                }
+
+                .group_rollover-columns.progress span {
+                    font-size: 16px;
+                }
+
+                .rollover_progressbar {
+                    margin-top:5px;
+                    width: 100%;
+                    height: 5px;
+                    border-radius: 5px; 
+                    background-color: #ccc;
+                    overflow: hidden;
+                }
+
+                .rollover_progressbar > div {
+                    height: 100%; 
+                    border-radius: 5px;
+                    border-bottom-right-radius: 5px;
+                    border-top-right-radius: 5px;
+                    background-color: var(--borda);
+                }
+
+                .group_rollover-columns.buttons {
+                    gap: 10px;
+                }
+
+                .rollover_cancelled,
+                .faq_bonus {
+                    display: flex;
+                    padding: 10px;
+                    background: #c0c0c00f;
+                    border-radius: 5px;
+                    justify-content: center;
+                    flex: 1;
+                    cursor: pointer;
+                }
+
+                .rollover_cancelled {
+                    color: var(--vermelho);
+                }
+
+                .rollover_cancelled:hover,
+                .faq_bonus:hover {
+                    background: #c0c0c01c;
+                }
+            </style>
+            <script>
+                function rolloverMenu() {
+                    if ($(".rollover_menu").css('display') == "none") $(".rollover_menu").fadeIn();
+                    else $(".rollover_menu").fadeOut();
+                }
+            </script>
+            <a class="addbalance rodar-icon-up"
+                onclick="openPage('/traderoom/payin')"
+                style="display: flex; flex-direction: row; align-items: center; justify-content: space-around;">
+                <span>Depósito</span>
+                <iconify-icon icon="solar:wallet-outline"
+                    style="font-size: 25px;">
+            </a>
+            <div class="userphoto menu bodyclick" style="width: 46px; height: 46px;">
+
+                <div class="photo " onclick="_menu()">
+                                                            <iconify-icon icon="lets-icons:user" ></iconify-icon>
+                                        
+                </div>
+
+                <div class="user_profile">
+                </div>
+
+                <div class="slider_menu bodyclick_hide">
+                    
+
+                    <a class="rodar-up" onclick="closePage()" style="display: flex; flex-direction: row; align-items: center;">
+                        <img src="img/ico1.png" class="icon-menu" />
+                        <span>Negociação</span>
+                    </a>
+
+                    <a class="rodar-up" onclick="openPage('/traderoom/profile')" style="display: flex; flex-direction: row; align-items: center;">
+                        <img src="img/ico3.png" class="icon-menu" />
+                        <span>Meu Perfil</span>
+                    </a>
+  
+                    <a class="rodar-up" onclick="openPage('/traderoom/payin')" style="display: flex; flex-direction: row; align-items: center;">
+                        <img src="img/ico4.png" class="icon-menu" />
+                        <span>Depósito</span>
+                    </a>
+    
+                    <a class="rodar-up" onclick="openPage('/traderoom/payout')" style="display: flex; flex-direction: row; align-items: center;">
+                        <img src="img/ico5.png" class="icon-menu" />
+                        <span>Saque</span>
+                    </a>
+    
+                    <a class="rodar-up" onclick="redir('/logout')" style="display: flex; flex-direction: row; align-items: center;">
+                        <img src="img/ico10.png" class="icon-menu" />
+                        <span>Sair</span>
+                    </a>
+    
+                    <div class="clear"></div>
+    
+                </div>
+
+            </div>
+        </div>
+
+
+    </div>
+
+    <div class="clear"></div>
+
+    <style>
+        .head_rightt .userphoto .photo.vip img,
+        .head_rightt .userphoto .photo.vip iconify-icon {
+            border-color: gold;
+        }
+        .head_rightt .userphoto .photo.vip span {
+            position: absolute;
+            color: gold;
+            z-index: 1;
+            background: #040c11;
+            font-size: 11px;
+            border-radius: 1rem;
+            padding: 1px 6px;
+            bottom: 0;
+            font-weight: bold;
+            left: -5px;
+            border: 2px solid gold;
+            cursor: pointer;
+        }
+        .head_rightt .userphoto .photo iconify-icon {
+            color: var(--dest);
+            font-size: 35px;
+            height: 40px;
+            width: 40px;
+            background: var(--color1Admin);
+            border-radius: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid var(--borda);
+        }
+    </style><div class="main"> 
+
+	
+<div id="w1" style="width: 100%;
+    /*height: 584px;*/
+	/*height: calc(100% - 58px);*/
+	height: 100%;
+    z-index: 2;
+    display: flex;">
+
+	<div class="left">
+
+		<div class="left_menu" onclick="abrirFecharLots()">
+			<iconify-icon icon="tabler:device-desktop-analytics" style="font-size: 35px;"></iconify-icon>
+			<p>Operações Abertas</p>
+			<span class="count_open_lots_menu apagar" style="display: flex;
+			position: absolute;
+			background: var(--bg);
+			border-radius: 100%;
+			top: 15px;
+			left: 50px;
+			width: 20px;
+			height: 20px;
+			align-items: center;
+			justify-content: center;">0</span>
+		</div>
+
+		
+
+		<div class="left_menu" onclick="toggleMenuSidebar('historico', this)">
+			<iconify-icon icon="lucide:clock-3" style="font-size: 28px;"></iconify-icon>
+			<p>Histórico de Trading</p>
+		</div>
+
+		<div class="left_menu" onclick="openPage('/traderoom/copy')">
+			<iconify-icon icon="ph:swap" style="font-size: 30px;"></iconify-icon>
+			<p>Copy Trader</p>
+		</div>
+
+		<div class="left_menu addDeposito rodar-icon-up" onclick="openPage('/traderoom/payin')">
+			<iconify-icon icon="solar:wallet-outline" style="font-size: 35px;"></iconify-icon>
+			<p>Depósito</p>
+		</div>
+
+		<!-- <div class="left_menu" onclick='AbrirCalendario("CNN Brasil Money","https://www.cnnbrasil.com.br/economia/money/")'>
+			<img src="./img/cnn-logo-white.png" alt="CNN" style="width: 35px; height: auto;">
+			<p>CNN Brasil Money</p>
+		</div> -->
+
+		<div class="left_menu" onclick='AbrirCalendario("Calendário Econômico","https://www.investing.com/economic-calendar/")'>
+			<iconify-icon icon="mdi:calendar" style="font-size: 35px;"></iconify-icon>
+			<p>Calendário Econômico</p>
+		</div>
+
+	</div>
+	
+
+	
+	<script>
+		function AbrirCalendario(titulo,url){
+			$(".ModalCalendario iframe").remove();
+			const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.className = 'modalIFrame';
+			$(".ModalCalendario h3").html(titulo);
+			$(".ModalCalendario").append(iframe);
+			$(".ModalCalendario").css('display', 'flex');
+		}
+
+		function fecharModal_(){
+			$(".ModalCalendario").css('display', 'none');
+			$(".ModalCalendario iframe").remove();
+			$(".ModalCalendario h3").html('');
+		}
+	</script>
+
+	<div class="janela_menu_left closed">
+
+		<!-- HISTORICO DE OPERACOES -->
+
+		<div class="historico menu_opc_left apagar">
+
+			<div class="topo_janela_menu">
+				<p style="margin-bottom: 10px; font-weight: bold;">Histórico de Operações</p>
+
+				<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-around;">
+
+					<iconify-icon onclick="openPage('/traderoom/tradehistory')" icon="solar:file-text-linear" class="iconHover icon_hist apagar" style="cursor: pointer; margin-right: 10px;"></iconify-icon>
+
+					<iconify-icon onclick="fecharMenuSidebar()" icon="carbon:close-outline" style="cursor: pointer;" class="iconHover"></iconify-icon>
+
+				</div>
+			</div>
+			
+			<div id="op_container_close" class="op_container"></div>
+
+			
+		</div>
+
+		<!-- RANKING -->
+
+		<div class="ranking menu_opc_left apagar">
+
+			<div class="topo_janela_menu">
+				<p style="margin-bottom: 10px;">Melhores Negociantes</p>
+				<iconify-icon onclick="fecharMenuSidebar()" icon="carbon:close-outline" style="cursor: pointer;" class="iconHover"></iconify-icon>
+			</div>	
+
+			<div style="margin-bottom: 10px;">
+				<label style="font-size: 12px;">Período: </label>
+				<select class="select" name="periodoRanking" onchange="rankings_()" style="width: 100%;float: none;">
+				<!--<option value="today" selected>Hoje</option>  
+				<option value="three">3 Dias</option>-->
+				<option value="seven" selected>7 Dias</option>
+				</select>
+			</div>
+
+			<div class="titulo_rank">
+				<p>Ranking</p>
+				<p>Lucro</p>
+			</div>
+			<div id="ranking_container" class="ranking_container">
+
+			</div>
+
+			
+
+
+		</div>
+
+		<!-- Promoções -->
+
+		<div class="ranking menu_opc_left apagar">
+			<div class="topo_janela_menu">
+				<p style="margin-bottom: 10px;">Promoção</p>
+				<iconify-icon onclick="fecharMenuSidebar()" icon="carbon:close-outline" style="cursor: pointer;" class="iconHover"></iconify-icon>
+			</div>	
+		</div>
+	</div>
+
+
+	<div class="centroJal" style="width: calc(100% - 80px);">
+
+		<div class="chart_window"  style="display: flex;
+			/* justify-content: flex-start; */
+			/* flex-direction: row; */
+			width: 100%;
+			height: 698px;
+			position: relative;">
+
+			<div class="center">
+				
+				<div class="topinterface" >
+
+					<div class="currency_select bodyclick">
+						
+						<img class="icon">  
+
+						<div class="name1"><span class="namev"></span>
+							<div class="type">
+							</div>
+
+						</div>
+
+						<div class="arrow"></div>
+
+						<div class="clear"></div>
+
+						<div class="popup curreny_table bodyclick_hide" id="add_tab">
+	  
+    <div class="bodyclick"> 
+    
+    <div class="title">Ativos
+           <a class="close" onclick="closeblock()"></a>
+     </div>
+
+     <div class="category">
+         <!-- Abertos -->
+         <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up selected" onclick="getCurrencyList(this, 'open',  1)">
+            <iconify-icon icon="oui:clock" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Abertos</div>
+        </div>
+
+         <!-- Forex -->
+         <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,7,  1)">
+            <iconify-icon icon="hugeicons:coins-swap" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Forex</div>
+        </div>
+
+        <!-- Crypto -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,8, 1)">
+            <iconify-icon icon="hugeicons:bitcoin-ellipse" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Cripto</div>
+        </div>
+
+        <!-- Stock -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,9, 1)">
+            <iconify-icon icon="bi:bank" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name ">Ações</div>
+        </div>
+
+        <!-- Stock -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,10, 1)">
+            <iconify-icon icon="icon-park-outline:heavy-metal" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name ">Metais</div>
+        </div>
+
+        <!-- Stock -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,11, 1)">
+            <iconify-icon icon="tabler:chart-line" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name ">Indices</div>
+        </div>
+
+        <!-- Favorits -->
+        <div style="justify-content: flex-start; gap: 10px;" class="item rodar-icon-up" onclick="getCurrencyList(this,'fav',1)">
+            <iconify-icon icon="solar:star-line-duotone" class="iconHover" style="color: #9b9fa8; font-size: 25px; cursor: pointer;"></iconify-icon>
+            <div class="item_name">Favoritos</div>
+        </div>
+    
+           
+     
+
+
+     </div>
+
+     <div class="currency"></div>
+
+
+     <div class="clear"></div>
+
+    </div>
+  </div>
+
+
+
+					</div>
+
+				
+					
+					
+
+				</div>
+
+				<div class="topinterfaceferramentas">
+					<div class="iconbar">
+
+    <div class="icon_timeresol icon">
+        <div class="icon_text timeresol_val" style="padding-top: 6px;">1m</div>
+    </div>
+
+    <div class="icon_candle  icon"></div>
+
+    <div class="icon_indicator icon"></div>
+
+    <div class="icon_pan icon"></div>
+
+    <div class="icon_clean icon"></div>
+
+    <div class="clear"></div>
+
+    <!-- Clean List -->
+    <div class="iconbar_window clean">
+        <div class="title">Limpar Gráfico
+            <a class="close"></a>
+        </div>
+
+        <div class="items">
+
+            <div class="tleft">
+                <div class="item" value="del_pan">Limpar Todos Desenhos</div>
+                <div class="item" value="del_indicators">Limpar Todos Indicadores</div>
+            </div>
+            <div class="tleft">
+                <div class="item" value="del_all">Limpar Gráfico</div>
+            </div>
+
+            <div class="clear"></div>
+        </div>
+    </div>
+
+    <!--  Pan draw List -->
+    <div class="iconbar_window pan">
+        <div class="title">Ferramentas Gráficas
+            <a class="close"></a>
+        </div>
+
+        <div class="items">
+
+            <div class="tleft">
+
+                <div class="item pan1" value="trend_line">Linha de Tendência
+                </div>
+
+                <div class="item pan1" value="horizontal_line">Linha Horizontal
+                </div>
+
+                <div class="item pan1" value="vertical_line">Linha Vertical
+                </div>
+
+                <div class="item pan1" value="ray">Raio
+                </div>
+
+                <div class="item pan1" value="fib_retracement"> Fibonachi
+                </div>
+
+            </div>
+            <div class="tleft">
+
+                <div class="item pan1" value="fib_speed_resist_fan"> Fibonachi Fan
+                </div>
+
+                <div class="item pan1" value="parallel_channel"> Canal Paralelo
+                </div>
+
+                <div class="item pan1" value="rectangle">Retângulo</div>
+
+                <div class="item pan1" value="pitchfork">Pitchfork
+                </div>
+                <div class="item pan1" value="flag">Bandeira</div>
+
+            </div>
+
+            <div class="clear"></div>
+        </div>
+    </div>
+
+    <!--  Time Resolution list -->
+    <div class="iconbar_window timeresol">
+        <div class="title">Resolução do Gráfico
+            <a class="close"></a>
+        </div>
+
+        <div class="items">
+
+            <div class="text"> </div>
+
+            <div class="tleft">
+
+
+                <div class="item resolution" value="1">
+                    1 min
+                </div>
+                <div class="item resolution" value="5">
+                    5 min
+                </div>
+
+                <div class="item resolution" value="15">
+                    15 min
+                </div>
+                <div class="item resolution" value="30">
+                    30 min
+                </div>
+
+            </div>
+
+            <div class="tleft">
+                
+
+                <div class="item resolution" value="60">
+                    1 hora
+                </div>
+                <div class="item resolution" value="240">
+                    4 hora
+                </div>
+                <div class="item resolution" value="1440">
+                    1 dia
+                </div>
+
+            </div>
+
+            <div class="clear"></div>
+        </div>
+    </div>
+
+    <!--  Timeframes list -->
+    <div class="iconbar_window timeframes">
+        <div class="title">Período do gráfico            <a class="close"></a>
+        </div>
+
+        <div class="items">
+
+            <div class="text">Período de exibição do gráfico</div>
+
+            <div class="tleft">
+
+                <div class="item period" value="5">
+                    5 min                </div>
+                <div class="item period" value="10">
+                    10 min                </div>
+
+                <div class="item period" value="30">
+                    30 min                </div>
+                <div class="item period" value="60">
+                    1 hora                </div>
+                <div class="item period" value="180">
+                    3 horas                </div>
+            </div>
+            <div class="tleft">
+
+                <div class="item period" value="720">
+                    12 horas                </div>
+
+                <div class="item period" value="1440">
+                    1 dia                </div>
+                <div class="item period" value="10080">
+                    7 dias                </div>
+                <div class="item period" value="43200">
+                    30 dias                </div>
+
+            </div>
+
+            <div class="clear"></div>
+
+        </div>
+    </div>
+
+    <!--  Type chart  -->
+
+    <div class="iconbar_window typechart">
+        <div class="title">Tipo de gráfico            <a class="close"></a>
+        </div>
+
+        <div class="category">
+            <div class="item" value="liner">
+                <div class="item_ico liner"></div>
+                <div class="item_name">Linha</div>
+                <div class="clear"></div>
+            </div>
+            <div class="item" value="candle">
+                <div class="item_ico candle"></div>
+                <div class="item_name">Candlesticks</div>
+                <div class="clear"></div>
+            </div>
+            <div class="item" value="bars">
+                <div class="item_ico bars"></div>
+                <div class="item_name">Barras</div>
+                <div class="clear"></div>
+            </div>
+            <div class="item" value="ha">
+                <div class="item_ico ha"></div>
+                <div class="item_name">Heikin-Ashi</div>
+                <div class="clear"></div>
+            </div>
+
+            <div class="clear"></div>
+        </div>
+
+        <div class="chart_settings">
+        
+
+            <div class="clear"></div>
+        </div>
+        <div class="clear"></div>
+    </div>
+
+    <!--  Indicators  -->
+    <div class="iconbar_window indicators">
+        <div class="title">Indicadores
+            <a class="close"></a>
+        </div>
+
+        <div class="category">
+
+            <div class="item" value="lista">
+                <div class="item_ico popular"></div>
+                <div class="item_name">Indicadores</div>
+                <div class="clear"></div>
+            </div>
+
+            <div class="item" value="emuso">
+                <div class="added">0</div>
+                <div class="item_name">em uso</div>
+                <div class="clear"></div>
+            </div>
+
+            <div class="clear"></div>
+        </div>
+
+        <div class="indicators_list">
+
+            <div class="clear"></div>
+        </div>
+        <div class="clear"></div>
+    </div>
+
+</div>
+				</div>
+
+				<div class="clear"></div>
+
+
+				<div id="placeholder_1" style="height: 100%;" ></div>
+				
+			</div>
+		
+
+			<div class="right" style="width: 222px; padding: 16px 24px;">
+								<div class="addlot_binary" style="outline: rgb(11, 23, 33) solid 1px;
+    background-color: rgb(4, 12, 17);
+    border-radius: 4px;
+    padding: 16px;">
+
+    <div style="display: flex;
+        align-items: center;
+        justify-content: space-around; margin-bottom: 10px;">
+
+
+        <div class="name"  style="display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-end;
+            width: 100%;
+            gap: 5px;
+            font-size: 14px;">
+            <span>Tempo:</span> <span style="color: #fff; font-size: 14px;" class="temp_restante"></span>
+        </div>
+
+    </div>
+
+    <div class="input_block" style="width: 100%; margin-bottom: 15px;">
+
+        
+        <div class="selects" style="width: 100%;">
+          
+
+            <div style="padding: 5px 14px;gap:5px;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                border: 1px solid var(--borda);
+                background: #040c11;
+                border-radius: 7px; height: 43px;" class="selects_label">
+
+                <div class="time_minus" style="margin: 0px;
+                    cursor: pointer;
+                    display: flex;
+                    font-size: 12px;
+                    justify-content: center;
+                    border-radius: 100%;
+                    align-items: center;
+                    min-width: 25px;
+                    min-height: 25px;
+                    max-width: 25px;
+                    max-height: 25px; 
+                    color: #040c11;">
+                    <iconify-icon icon="fa6-solid:minus"></iconify-icon>
+                </div>
+
+                
+                <div class="selects_label" onclick="select_click(this)">
+
+
+                    <div style="color: #fff;font-weight: 100; font-size: 25px;" class="selects_time"></div>
+
+                    <input name="binarytime" type="hidden" value="60">
+
+                </div>
+                
+
+                <div class="time_plus"style="margin: 0px;
+                    cursor: pointer;
+                    display: flex;
+                    font-size: 12px;
+                    justify-content: center;
+                    border-radius: 100%;
+                    align-items: center;
+                    min-width: 25px;
+                    min-height: 25px;
+                    max-width: 25px;
+                    max-height: 25px; 
+                    color: #040c11;">
+                    <iconify-icon icon="fa6-solid:plus"></iconify-icon>
+                </div>
+
+                <input name="binarytime" type="hidden" value="60">
+
+                <div id="selects_list_n" class="selects_list">
+                    <p >Tempo/Restante</p>
+                    <div class="binarytimes_list"></div>
+                </div>                
+
+                <p style="position: absolute;
+                    color:  var(--borda);
+                    background: #040c11;
+                    top: -10px;
+                    left: 10px;
+                    padding: 0px 5px;"><b>Tempo</b></p>
+
+                <!-- <p style="position: absolute;
+                    color:  #fff;
+                    background: #040c11;
+                    bottom: -5px;
+                    left: 35px;
+                    padding: 0px 5px;
+                    font-size: 10px;
+                "><b>TEMPO DE OPERAÇÃO</b></p> -->
+
+            </div>
+            
+        </div>
+
+    </div>
+
+     <div class="input_block" style="width: 100%; margin-bottom: 15px;">
+      
+
+        <div class="selects" style="width: 100%;">
+
+            <div style="padding: 5px 14px;gap:5px;
+                cursor: pointer;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                border: 1px solid var(--borda);
+                background: #040c11;
+                border-radius: 7px; height: 43px;">
+
+                <div class="amount_minus" style="margin: 0px;
+                    cursor: pointer;
+                    display: flex;
+                    font-size: 12px;
+                    justify-content: center;
+                    border-radius: 100%;
+                    align-items: center;
+                    min-width: 25px;
+                    min-height: 25px;
+                    max-width: 25px;
+                    max-height: 25px; 
+                    color: #040c11;">
+                    <iconify-icon icon="fa6-solid:minus"></iconify-icon>
+                </div>
+
+                
+                <div class="form2" style="width: 100%;"> 
+                    <input autocomplete="off" style="width: 100%;text-align: center;padding-top: 2px;font-size: 22px;background: #040c11;margin: 0px;" type="number" value="20"  step="1.00" min="3" max="20000" name="lot_amount" class="lot_amount" pattern="[0-9]*">
+                </div>
+                
+
+                <div class="amount_plus"style="margin: 0px;
+                    cursor: pointer;
+                    display: flex;
+                    font-size: 12px;
+                    justify-content: center;
+                    border-radius: 100%;
+                    align-items: center;
+                    min-width: 25px;
+                    min-height: 25px;
+                    max-width: 25px;
+                    max-height: 25px; 
+                    color: #040c11;">
+                    <iconify-icon icon="fa6-solid:plus"></iconify-icon>
+                </div>
+
+                <p style="position: absolute;
+                    color:  var(--borda);
+                    background: #040c11;
+                    top: -10px;
+                    left: 10px;
+                    padding: 0px 5px;"><b>Investimento</b></p>
+
+                <!-- <p style="position: absolute;
+                    color:  #fff;
+                    background: #040c11;
+                    bottom: -5px;
+                    left: 70px;
+                    padding: 0px 5px;
+                    font-size: 10px;
+                "><b>VALOR</b></p> -->
+
+            </div>
+            
+        </div>
+
+    </div>
+
+
+   <!-- <div class="profit_block">
+
+        <div class="name" style="margin-bottom: 5px;">Lucro</div>
+        <div class="clear"></div>
+
+        <div style="text-align: center;
+        padding: 5px;
+        background: var(--color1);">
+
+            <div class="percent" style="color: #fff;font-size: 30px;"></div>
+            <div class="profit" style="">R$ <span class="lot_profit"></span></div>
+
+        </div>
+
+        <div class="clear"></div>
+       
+
+    </div> -->
+
+    <div class="clear"></div>
+
+    <div style="width: 100%;">
+
+        <div class="profit" style="font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;">
+            <span style="color:var(--borda);font-size: 14px;">Receita:</span> 
+            <b><span class="percent"></span></b>
+        </div>
+
+        <div class="profit" style="font-size: 22px;text-align: center;"><b>R$ <span class="lot_profit"></span></b></div>
+
+    </div>
+ 
+
+
+    <div class="addlot_buttons">
+
+        <button class="pushable up" style="margin-bottom: 15px;">
+            <span class="shadow"></span>
+            <span class="edgeup"></span>
+            <span class="frontup rodar-up"
+                style="display: flex; justify-content: space-evenly; flex-direction: row; align-items: center; height: 70px;">
+                <span style="font-size: 15px;font-weight: bold;">COMPRA</span>
+                <!-- <img style="width:35px;" src="../../img/bot_icon_cima.png"> -->
+                <div style="background: #ffffff52;border-radius: 100%;width: 20px;
+    height: 20px;font-size: 20px;"> 
+                    <iconify-icon icon="typcn:arrow-up"></iconify-icon> 
+                </div>
+            </span>
+        </button>        
+
+        <button class="pushable down">
+            <span class="shadow"></span>
+            <span class="edgedown"></span>
+            <span class="frontdown rodar-down"
+                style="display: flex; justify-content: space-evenly; flex-direction: row; align-items: center; height: 70px;">
+                <span style="font-size: 15px;font-weight: bold;">VENDA</span>
+                <!-- <img style="width:35px;" src="../../img/bot_icon_baixo.png"> -->
+                <div style="background: #ffffff52;border-radius: 100%;width: 20px;
+    height: 20px;font-size: 20px;"> 
+                    <iconify-icon icon="typcn:arrow-down"></iconify-icon> 
+                </div>
+            </span>
+        </button>
+
+        
+    </div>
+
+    <div class="mess_lot"></div>
+    
+</div>
+
+
+
+
+			</div>
+
+		</div>
+
+
+		<div class="lots lotsFechado">
+	<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+    height: 30px;
+    padding: 0 10px;">
+
+		<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-around;">
+
+			<div class="table_top">
+				<div onclick="loadLots('lots_abertos', this)" class="top_name selected">Operações Abertas (<span id="count_open_lots">0</span>)</div>	
+			</div>
+
+			<!-- <div class="table_top">
+				<div onclick="loadLots('lots_fechados', this)" class="top_name">Operações Fechadas</div>
+			</div> -->
+		</div>
+
+		<div class="table_top" style="display: flex; flex-direction: row; align-items: center; justify-content: space-around;">
+			<!--<div class="sethide" onclick="openPage('/traderoom/tradehistory')"></div> 
+		 	<div class="resize" id="resize"></div> -->
+
+			
+			<iconify-icon onclick="openPage('/traderoom/tradehistory')" icon="solar:file-text-linear" class="iconHover" style="color: #9b9fa8; font-size: 20px; cursor: pointer; margin-right: 10px;"></iconify-icon>
+
+			<!--<iconify-icon id="resize" icon="mdi:resize-vertical" class="iconHover" style="color: #9b9fa8; font-size: 20px; cursor: n-resize;"></iconify-icon>-->
+
+			
+			<iconify-icon onclick="abrirFecharLots()" icon="mdi:resize-vertical" class="iconHover" style="color: #9b9fa8; font-size: 20px; cursor: n-resize;"></iconify-icon>
+
+		</div>
+
+	</div>
+
+	<div class="lots_table lots_abertos">
+
+    	<div class="table_head">
+	   		<div class="item">Ativo</div>	 
+	   		<div class="item">Tempo</div>
+	  		<div class="item">Fechar</div>
+	  		<div class="item">Abertura</div>
+	 		<div class="item">Ação</div>
+	 		<div class="item">Resultado</div>	
+		
+		</div>
+
+		<div class="table_list" id="lots_open"></div>
+
+  	</div>
+ 
+	
+	
+  	<div class="lots_table lots_fechados apagar">
+	  
+	 	<div class="table_head">
+	   		<div class="item">Ativo</div>	 
+	   		<div class="item">Tempo</div>
+	  		<div class="item">Expiração</div>
+	  		<div class="item">Abertura</div>
+       		<div class="item">Fechamento</div>
+	 		<div class="item">Ação</div>
+	 		<div class="item">Resultado</div>	
+		
+		</div>	  
+	  
+  	 	<div class="table_list" id="lots_close"></div>	  
+	  
+ 	</div>
+</div>
+
+
+<script> 
+
+function abrirFecharLots() {
+
+	var janela = $('.lots');
+
+	var h2 = windowH()-100-63;
+	var h1 = windowH()-100-183;
+	
+	if (janela.hasClass('lotsFechado')) {
+		//$('.main').css('height', h1+'px');	
+	    $('.chart_window').css('height', h1+'px');
+
+		$('.centroJal').css('height', h1+'px');
+	}else{
+		//$('.main').css('height', h2+'px');	
+	    $('.chart_window').css('height', h2+'px');
+
+		$('.centroJal').css('height', h2+'px');
+	}
+
+	document.querySelector('.lots')
+    .classList.toggle('lotsFechado');
+
+	sc();
+
+}
+</script>
+	
+	
+	</div>
+
+</div>
+
+<div class="ModalCalendario">
+	<header>
+		<h3></h3>
+		<button class="fecharModal" onclick="fecharModal_()">x</button>
+	</header>
+</div>
+
+<div class="ModalSuporte">
+	<div class="ModalContainer">
+		<span class="fecharModalSuporte" onclick="fecharModalSuporte_()">x</span>
+		<div class="ModalPerfil">
+			<img src="./img/tess.png" alt="Tess Garcia" draggable="false" style="">
+			<div class="ModalIdade">25 anos de idade</div>
+			<div class="ModalTempoCasa">
+				<img src="./logo/icon.png" alt="Logo Puma Broker"/>
+				<span style="font-size: 12px; color: rgb(255, 255, 255);">1 ano com a Puma Broker</span>
+			</div>
+		</div>
+		<div class="ModalDescricao">
+			<div>
+				<h2>Tess Garcia</h2>
+				<p>Essa é sua gerente de conta, fique à vontade para solicitar informações ou suporte. Responderemos assim que possível.</p>
+				<p class="email">✉ support@pumabroker.io</p>
+				<button onclick="window.open('https://t.me/tessgarciapumabroker', '_blank')">SOLICITAR SUPORTE</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	.ModalSuporte{
+		position: fixed;
+		top: 0px;
+		left: 0px;
+		width: 100%;
+		height: 100%;
+		background: rgba(0, 0, 0, 0.5);
+		display: none;
+		justify-content: center;
+		align-items: center;
+		z-index: 1000;
+	}
+	.ModalContainer {
+		background: rgb(56, 62, 91);
+		color: rgb(255, 255, 255);
+		padding: 20px;
+		border-radius: 8px;
+		max-width: 600px;
+		width: 90%;
+		display: flex;
+		flex-direction: row;
+		position: relative;
+		transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+		overflow-wrap: break-word;
+		transform: scale(1);
+		opacity: 1;
+	}
+	.ModalSuporte .ModalPerfil{
+		flex-shrink: 0;
+		text-align: center;
+		margin-right: 20px;
+		display: flex;
+		flex-direction: column;
+		min-width: 140px;
+		align-items: center;
+	}
+	.ModalPerfil img {
+		width: 120px;
+		height: 120px; 
+		object-fit: cover;
+		border-radius: 999999px;
+	}
+	.ModalPerfil .ModalIdade {
+		font-size: 12px;
+		color: rgb(255, 255, 255);
+		margin-bottom: 10px;
+	}
+	.ModalPerfil .ModalTempoCasa {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.ModalTempoCasa img {
+		width: 20px;
+		height: 20px;
+		margin-right: 5px;
+	}
+	.ModalDescricao {
+		flex: 1 1 0%;
+		display: flex;
+		flex-direction: column;
+	}
+	.ModalDescricao > div {
+		display: flex;
+		flex-direction: column;
+	}
+	.ModalDescricao h2 {
+		margin: 0px 0px 8px;
+		font-size: 20px;
+		color: rgb(255, 255, 255);
+	}
+	.ModalDescricao p {
+		font-size: 16px;
+		color: rgb(255, 255, 255);
+		margin: 0px;
+	}
+	.ModalDescricao p.email {
+		font-size: 15px;
+		color: rgb(255, 255, 255);
+		margin-top: 8px;
+	}
+	.ModalDescricao button {
+		background-color: green;
+		color: rgb(255, 255, 255);
+		border: none;
+		padding: 8px 16px;
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 14px;
+		margin: 10px auto 0px;
+	}
+
+	.fecharModalSuporte {
+		position: absolute;
+		top: 10px;
+		right: 16px;
+		cursor: pointer;
+		font-size: 18px;
+		font-weight: bold;
+		color: rgb(255, 255, 255);
+	}
+
+.ModalCalendario {
+	position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 80%;
+    background-color: rgb(255, 255, 255);
+    box-shadow: rgba(0, 0, 0, 0.2) 0px 4px 8px;
+    z-index: 1000;
+    border-radius: 8px;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+
+}
+.ModalCalendario header {
+	display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    border-bottom: 1px solid #afafaf;
+}
+.fecharModal {
+	align-self: flex-end;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    width: 43px;
+    background: var(--bg);
+    color: white;
+}
+
+.modalIFrame {
+	flex: 1;
+	border: none;
+	border-radius: 8px;
+	margin: 10px;
+}
+.clock-time:before {
+	content: attr(clock);
+}
+
+.clock_container {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	width: 40px;
+	height: 40px;
+	aspect-ratio: 1 / 1.2 ;
+	flex-direction: column;
+	justify-content: flex-start ;
+}
+
+.timer {
+	width: 100%;
+	aspect-ratio: 1 / 1 ;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+ 
+.donat {
+	aspect-ratio: 1 / 1 ;
+	border-radius: 50%;
+	border:3px solid transparent;
+}
+
+.outer-circle {
+	position: relative;
+	width:100%;
+	
+	z-index:0;
+	display:flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.clock-timer {
+	font-size: 10px;
+}
+
+</style>
+
+<script>
+
+var conteudo = "tema";
+
+function toggleMenuSidebar(tema, obj) {
+
+	var janela = $('.janela_menu_left');
+
+	if (janela.hasClass('closed')) {
+
+		$('.janela_menu_left').removeClass('closed');
+		
+		$('.left_menu').removeClass('left_menu_ativo');
+		$(obj).addClass('left_menu_ativo');
+
+	} else {
+		if(conteudo == tema){
+			$('.janela_menu_left').addClass('closed');
+			$('.left_menu').removeClass('left_menu_ativo');
+		}else{
+			$('.left_menu').removeClass('left_menu_ativo');
+			$(obj).addClass('left_menu_ativo');
+		}
+	}
+
+	
+
+	if(tema == "operacoes"){
+		$('.operacoes').removeClass('apagar');
+		$('.historico').addClass('apagar');
+		$('.ranking').addClass('apagar');
+
+		$('.icon_hist').addClass('apagar');
+
+	} else if (tema == "historico") {
+		$('.operacoes').addClass('apagar');
+		$('.historico').removeClass('apagar');
+		$('.ranking').addClass('apagar');
+
+		$('.icon_hist').removeClass('apagar');
+
+	} else {
+		$('.operacoes').addClass('apagar');
+		$('.historico').addClass('apagar');
+		$('.ranking').removeClass('apagar');
+
+		$('.icon_hist').addClass('apagar');
+
+	}
+	
+	conteudo = tema;
+
+	sc();
+
+  /*document.querySelector('.janela_menu_left')
+    .classList.toggle('closed');*/
+}
+
+function fecharMenuSidebar(){
+	document.querySelector('.janela_menu_left')
+    .classList.add('closed');
+	$('.left_menu').removeClass('left_menu_ativo');
+
+	sc();
+}
+
+var distance_minutes = 1, 
+	distance,
+    time_left,
+	animation_id = null;
+
+function countdown_date(minutes) {
+    let dt = new Date();
+    return dt.setMinutes(dt.getMinutes() + minutes);
+}
+
+
+
+//function start_timer() {
+	let dt = new Date();
+	distance=dt.setMinutes(dt.getMinutes() + distance_minutes);
+    process_timer(distance);
+
+//}
+
+function process_timer(distance) {
+    let dt = new Date();
+
+    time_left = distance - new Date();
+    
+	let seconds_left = Math.floor((time_left % (1000 * 60)) / 1000),
+	minutes_left = Math.floor(time_left / (1000 * 60)),
+	progress_pers = 1 - time_left / (60 * 1000 * distance_minutes);
+
+	let timer_str = timer_string(minutes_left, seconds_left);
+	let cur_seconds = dt.getSeconds(),
+	cur_hours = dt.getHours();
+	//document.documentElement.style.setProperty('--timer-minutes-seconds', "'" + timer_str + "'");
+
+	//document.documentElement.style.setProperty('--inner_percent_deg', Math.round(100 * 100 * progress_pers) / 100 + "%");
+	
+
+	animation_id = window.requestAnimationFrame(function () {
+		process_timer(distance);
+	});
+     
+}
+
+function timer_string(minutes, seconds) {
+    let str_minutes,
+    str_seconds;
+    if (minutes < 10) {
+        str_minutes = `0${minutes}`
+    } else {
+        str_minutes = `${minutes}`
+    }
+    if (seconds < 10) {
+        str_seconds = `0${seconds}`
+    } else {
+        str_seconds = `${seconds}`
+    }
+    return `${str_minutes}:${str_seconds}`
+}
+
+
+function fecharModalSuporte_() {
+
+	$(".ModalSuporte").css('display', 'none');
+}
+
+</script>
+ 
+
+ 		
+
+	 
+</div>
+ 
+
+
+
+
+	
+
+ 
+
+
+
+
+
+
+
+
+<script>
+$(document).ready(function() {
+    
+
+	
+ /*var h_lots =  $('.lots').height();*/
+ var h_lots =  63;
+ var h  = windowH()-100-h_lots;
+
+ $('.chart_window').css('width', '100%');
+
+ //$('.main').css('height', h+'px');	
+ $('.chart_window').css('height', h+'px');
+
+ $('.ajaxpage').css('height', windowH()-100+'px');		
+	
+w1 = new Terminal(1, 91, "pt", "America/Sao_Paulo", 0, 1,1,60,"https://restapi.nxos.dev","wss://ws.nxos.dev","https://node.pumabroker.com","https://restapi.nxos.dev","wss://otc.nxos.dev/ws");
+	
+ 
+	
+/*setTimeout(function () { 
+w2 =  new Terminal(2, 92, "en", "America/Sao_Paulo", 0, 1);
+
+}, 900);*/
+  
+
+	
+ $(window).resize(function () {
+	 var h  = windowH()-100-h_lots;	
+
+     $('.chart_window').css('height', h+'px');	
+	//$('.main').css('height', h+'px');	
+
+     $('.ajaxpage').css('height', windowH()-100+'px');	
+ });
+	
+		
+ setWindowType(0); 
+	
+});	
+	
+</script>
+
+<div class="window"></div>
+<div class="bgwindow bodyclick_hide"></div>
+ 
+
+<div class="footer">
+     
+	<div style="display: flex; align-items: center; flex-direction: row; justify-content: space-between;">
+		<div onclick="$('.ModalSuporte').css('display', 'flex')"  style="background: #383e5b;padding: 4px;display: flex;align-items: center;border-radius: 6px;cursor: pointer;">
+				<img src="./img/tess.png" alt="Gerente de Conta" style="width: 23px;height: 23px;border-radius: 50%;object-fit: cover;margin-right: 4px;">
+				<span style="font-size: 13px;font-weight: bold;padding-right: 5px;">Tess Garcia - Gerente de Contas</span>
+		</div>
+		<button onclick="$('.ModalSuporte').css('display', 'flex')" style="background-color: green;color: white;border: none;padding: 7px;border-radius: 6px;cursor: pointer;font-size: 13px;margin-left: 9px;">Obter Suporte 24/7</button>
+		
+	</div>
+
+	<div style="display: flex; align-items: center; flex-direction: row; justify-content: space-between;">
+		<span style="color: #555d6e">HORA ATUAL:</span>
+		<div style="margin: 0 5px;" class="time"></div>
+		<span style="color: #555d6e">(UTC-3)</span>
+		<div style="margin:0 10px" class="sound off" onclick="sound()"></div>
+		<div class="fullscreen" onclick="FullScreen()"></div>
+	</div>
+
+</div>
+
+<div class="alert-success alert-white rounded" style="padding-left: 60px;">
+	<div class="icon">
+		<iconify-icon style="font-size: 30;margin-top: 3px;" icon="mdi:check-bold" ></iconify-icon>
+	</div>
+	<strong>Sucesso!</strong> Alteração feita com sucesso!
+</div>
+
+<div id="confirmModalBonus" class="modal-overlay hidden">
+	<div class="confirm-content">
+		<div class="confirm-header">
+			<div class="warning-icon">!</div>
+			<h3 id="confirmTitle" class="confirm-title">Tem certeza de que deseja cancelar o bônus?</h3>
+		</div>
+		<p id="confirmMessage" class="confirm-message">O saldo real da sua conta será reduzido para <b id="valorAposCancelar">0,00</b> com base no seu volume de negociação de bônus</p>
+		<div class="confirm-actions">
+			<button id="confirmCancel" onclick="closeConfirmModalBonus()" class="btn-cancel">Fechar</button>
+			<button id="confirmDelete" onclick="confirmCancelRollover()" class="btn-delete">Cancelar bônus</button>
+		</div>
+	</div>
+</div>
+
+
+<!-- Modal HTML embedded directly into document -->
+<div id="modalInativo" class="modal">
+  <p style="color: #777;">O gráfico <b><span class="modal-currency"></span></b> está fechado no momento.</p>
+</div>                 
+ 
+		
+
+ <script>
+
+	function openConfirmModalBonus() {
+		
+		document.getElementById('confirmModalBonus').addEventListener('click', (e) => {
+			if (e.target.id === 'confirmModalBonus') closeConfirmModalBonus();
+		});
+		
+		document.getElementById('valorAposCancelar').textContent = Number(userdata.balance-userdata.bonus).toLocaleString('pt-BR', { minimumFractionDigits: 2, style: "currency", currency: "BRL" });
+		document.getElementById('confirmModalBonus').classList.remove('hidden');
+	}
+
+	function closeConfirmModalBonus() {
+		document.getElementById('confirmModalBonus').classList.add('hidden');
+		deleteWalletID = null;
+	}
+
+	function confirmCancelRollover() {
+		$.ajax({
+			url: "/traderoom/payout/cancel_rollover",
+			type: "POST",
+			data: {cancel: true},
+			success: function (data) {
+				if(data.success){
+					$("#rolloverButton").addClass("hidden");
+					$("#confirmModalBonus").addClass("hidden");
+				}else{
+					alert("Error ao cancelar Rollover, entre em contato com o suporte.");
+				}
+			}
+		})
+	}
+		 
+	  sound_status = "0";
+	  lang = "en";
+
+
+
+	  function fecharModal(){
+
+    	$('#modalConfirm').removeClass('mostrarModal');
+	  }
+	
+</script>
+
+<script src="https://code.iconify.design/iconify-icon/1.0.0-beta.3/iconify-icon.min.js"></script>
+
+</body>
+</html>

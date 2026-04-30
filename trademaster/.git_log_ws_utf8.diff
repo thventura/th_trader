@@ -1,0 +1,901 @@
+﻿commit d97032bbfd8b669546735ddba0870dcef777ce67
+Author: cleytin0101 <cleytonwalbi0101@gmail.com>
+Date:   Wed Mar 18 19:58:36 2026 -0300
+
+    fix: use permanent message handler and firstDataRequest for reliable candle loading
+    
+    - Replace per-batch onmessage swapping with a permanent handler + closure resolver
+    - Set firstDataRequest: true for batch 0 (NXOS protocol requirement)
+    - Install onmessage before SUBSCRIBE so no server messages are dropped
+    - Single historyResolver variable ensures one pending request at a time
+    
+    Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+diff --git a/trademaster/src/lib/websocket-velas.ts b/trademaster/src/lib/websocket-velas.ts
+index 8497f19..db64df6 100644
+--- a/trademaster/src/lib/websocket-velas.ts
++++ b/trademaster/src/lib/websocket-velas.ts
+@@ -116,50 +116,6 @@ function enviarSubscribe(ws: WebSocket, symbol: string, interval: string) {
+   }));
+ }
+ 
+-// Envia GET_HISTORY e espera a resposta (uma ├║nica request-response)
+-function fetchBatch(ws: WebSocket, symbol: string, to: number, count: number): Promise<Vela[]> {
+-  return new Promise((resolve) => {
+-    const timeout = setTimeout(() => {
+-      ws.onmessage = savedHandler;
+-      console.warn(`[WS] Timeout batch para ${symbol}, to=${to}`);
+-      resolve([]);
+-    }, 15000);
+-
+-    const savedHandler = ws.onmessage;
+-
+-    ws.onmessage = (event: MessageEvent) => {
+-      try {
+-        const dados = JSON.parse(event.data);
+-
+-        if (dados.historyOHLCV) {
+-          clearTimeout(timeout);
+-          ws.onmessage = savedHandler;
+-
+-          if (dados.historyOHLCV.s === 'ok' && dados.historyOHLCV.t?.length > 0) {
+-            const velas = converterOHLCVNxos(
+-              dados.historyOHLCV.t, dados.historyOHLCV.o, dados.historyOHLCV.h,
+-              dados.historyOHLCV.l, dados.historyOHLCV.c, dados.historyOHLCV.v
+-            );
+-            resolve(velas);
+-          } else {
+-            resolve([]);
+-          }
+-          return;
+-        }
+-
+-        // Mensagens n├úo-history (watchOHLCV etc) s├úo ignoradas durante batch
+-      } catch (e) {
+-        console.error('[WS] Erro processando mensagem durante batch:', e);
+-      }
+-    };
+-
+-    ws.send(JSON.stringify({
+-      method: 'GET_HISTORY',
+-      params: { symbol, interval: '1', to, countback: count, firstDataRequest: false },
+-    }));
+-  });
+-}
+-
+ class ServicoVelas {
+   // Conex├úo real-time (para watchOHLCV em Corretora/usePuma)
+   private wsRealtime: WebSocket | null = null;
+@@ -274,7 +230,6 @@ class ServicoVelas {
+     const localAbort = new AbortController();
+     this.loadingAborts.set(wsSymbol, localAbort);
+ 
+-    // Se caller passou abort signal, propagar
+     if (abortSignal) {
+       abortSignal.addEventListener('abort', () => localAbort.abort(), { once: true });
+     }
+@@ -292,10 +247,42 @@ class ServicoVelas {
+       return;
+     }
+ 
++    // Handler PERMANENTE ÔÇö instalado UMA VEZ, nunca trocado
++    // historyResolver ├® uma vari├ível closure: apenas um pending por vez
++    let historyResolver: ((velas: Vela[]) => void) | null = null;
++
++    ws.onmessage = (event: MessageEvent) => {
++      try {
++        const dados = JSON.parse(event.data);
++
++        if (dados.historyOHLCV && historyResolver) {
++          const resolver = historyResolver;
++          historyResolver = null;
++
++          if (dados.historyOHLCV.s === 'ok' && dados.historyOHLCV.t?.length > 0) {
++            const velas = converterOHLCVNxos(
++              dados.historyOHLCV.t, dados.historyOHLCV.o, dados.historyOHLCV.h,
++              dados.historyOHLCV.l, dados.historyOHLCV.c, dados.historyOHLCV.v
++            );
++            console.log(`[WS] historyOHLCV recebido: ${velas.length} velas para ${wsSymbol}`);
++            resolver(velas);
++          } else {
++            console.log(`[WS] historyOHLCV vazio/erro para ${wsSymbol}:`, dados.historyOHLCV?.s);
++            resolver([]);
++          }
++          return;
++        }
++
++        // watchOHLCV e outras mensagens s├úo consumidas normalmente (n├úo descartadas)
++      } catch (e) {
++        console.error('[WS] Erro processando mensagem:', e);
++      }
++    };
++
+     // Enviar SUBSCRIBE (necess├írio para GET_HISTORY funcionar no NXOS)
+     enviarSubscribe(ws, wsSymbol, '1');
+ 
+-    // Aguardar um pouco ap├│s SUBSCRIBE para o servidor processar
++    // Aguardar SUBSCRIBE ser processado pelo servidor
+     await new Promise(r => setTimeout(r, 500));
+ 
+     try {
+@@ -308,7 +295,6 @@ class ServicoVelas {
+           break;
+         }
+ 
+-        // Verificar se WS ainda est├í aberto
+         if (ws.readyState !== WebSocket.OPEN) {
+           console.warn(`[WS] Conex├úo fechada durante carregamento de ${wsSymbol} no batch ${batch}`);
+           break;
+@@ -316,7 +302,30 @@ class ServicoVelas {
+ 
+         console.log(`[WS] Batch ${batch}: ${wsSymbol}, to=${currentTo} (${new Date(currentTo * 1000).toISOString()})`);
+ 
+-        const velas = await fetchBatch(ws, wsSymbol, currentTo, 1000);
++        // Enviar GET_HISTORY e esperar resposta via historyResolver
++        const velas = await new Promise<Vela[]>((resolve) => {
++          const timeout = setTimeout(() => {
++            historyResolver = null;
++            console.warn(`[WS] Timeout batch ${batch} para ${wsSymbol}`);
++            resolve([]);
++          }, 15000);
++
++          historyResolver = (v: Vela[]) => {
++            clearTimeout(timeout);
++            resolve(v);
++          };
++
++          ws.send(JSON.stringify({
++            method: 'GET_HISTORY',
++            params: {
++              symbol: wsSymbol,
++              interval: '1',
++              to: currentTo,
++              countback: 1000,
++              firstDataRequest: batch === 0,
++            },
++          }));
++        });
+ 
+         if (localAbort.signal.aborted) break;
+ 
+@@ -324,7 +333,7 @@ class ServicoVelas {
+           emptyRetries++;
+           if (emptyRetries <= 3) {
+             console.log(`[WS] Batch vazio, retry ${emptyRetries}/3 para ${wsSymbol}`);
+-            await new Promise(r => setTimeout(r, 1000)); // Esperar 1s antes de retry
++            await new Promise(r => setTimeout(r, 1000));
+             continue;
+           }
+           console.log(`[WS] ${emptyRetries} batches vazios consecutivos para ${wsSymbol}, parando`);
+@@ -340,8 +349,8 @@ class ServicoVelas {
+ 
+         if (onProgress) onProgress(totalCarregadas);
+ 
+-        // Mover cursor para tr├ís (baseado nas velas DESTE batch, n├úo do cache global)
+-        const maisAntiga = velas.reduce((min, v) => v.timestamp < min ? v.timestamp : min, Infinity);
++        // Mover cursor para tr├ís baseado nas velas DESTE batch
++        const maisAntiga = velas.reduce((min: number, v: Vela) => v.timestamp < min ? v.timestamp : min, Infinity);
+         currentTo = maisAntiga - 60;
+ 
+         // Verificar cobertura
+@@ -354,14 +363,14 @@ class ServicoVelas {
+           break;
+         }
+ 
+-        // Pequena pausa entre batches para n├úo sobrecarregar o servidor
++        // Pausa entre batches
+         await new Promise(r => setTimeout(r, 200));
+       }
+ 
+       const total = (this.velasPorAtivo[wsSymbol] || []).length;
+       console.log(`[WS] Carregamento finalizado: ${wsSymbol}, ${total} velas total`);
+     } finally {
+-      // Sempre fechar conex├úo dedicada
++      historyResolver = null;
+       try { ws.close(); } catch {}
+       this.loadingAborts.delete(wsSymbol);
+     }
+
+commit a9c16e4f93c7b2190b404ab9c9cb987b74d10ebc
+Author: cleytin0101 <cleytonwalbi0101@gmail.com>
+Date:   Wed Mar 18 19:36:02 2026 -0300
+
+    feat: Implement NXOS WebSocket service for real-time and historical candlestick data.
+
+diff --git a/trademaster/src/lib/websocket-velas.ts b/trademaster/src/lib/websocket-velas.ts
+index f949a75..8497f19 100644
+--- a/trademaster/src/lib/websocket-velas.ts
++++ b/trademaster/src/lib/websocket-velas.ts
+@@ -1,6 +1,6 @@
+ import type { Vela, EstadoWebSocket } from '../types';
+ 
+-// NXOS WebSocket ÔÇö ├║nico endpoint, sem fallback de terceiros
++// NXOS WebSocket ÔÇö ├║nico endpoint
+ const WS_NXOS = 'wss://ws.nxos.dev';
+ 
+ // Mapeamento de symbols para NXOS
+@@ -87,347 +87,321 @@ function converterOHLCVNxos(
+ 
+ type VelaListener = (velas: Vela[]) => void;
+ 
+-interface HistoryResolver {
+-  symbol: string;
+-  resolve: (velas: Vela[]) => void;
+-  timeoutId: ReturnType<typeof setTimeout>;
++// Abre uma conex├úo WebSocket e retorna quando estiver aberta
++function abrirConexao(): Promise<WebSocket | null> {
++  return new Promise((resolve) => {
++    try {
++      const ws = new WebSocket(WS_NXOS);
++      const timeout = setTimeout(() => { try { ws.close(); } catch {} resolve(null); }, 10000);
++
++      ws.onopen = () => {
++        clearTimeout(timeout);
++        resolve(ws);
++      };
++      ws.onerror = () => {
++        clearTimeout(timeout);
++        resolve(null);
++      };
++    } catch {
++      resolve(null);
++    }
++  });
++}
++
++// Envia SUBSCRIBE para um s├¡mbolo
++function enviarSubscribe(ws: WebSocket, symbol: string, interval: string) {
++  ws.send(JSON.stringify({
++    method: 'SUBSCRIBE',
++    params: { symbol, type: 'watchOHLCV', interval },
++  }));
++}
++
++// Envia GET_HISTORY e espera a resposta (uma ├║nica request-response)
++function fetchBatch(ws: WebSocket, symbol: string, to: number, count: number): Promise<Vela[]> {
++  return new Promise((resolve) => {
++    const timeout = setTimeout(() => {
++      ws.onmessage = savedHandler;
++      console.warn(`[WS] Timeout batch para ${symbol}, to=${to}`);
++      resolve([]);
++    }, 15000);
++
++    const savedHandler = ws.onmessage;
++
++    ws.onmessage = (event: MessageEvent) => {
++      try {
++        const dados = JSON.parse(event.data);
++
++        if (dados.historyOHLCV) {
++          clearTimeout(timeout);
++          ws.onmessage = savedHandler;
++
++          if (dados.historyOHLCV.s === 'ok' && dados.historyOHLCV.t?.length > 0) {
++            const velas = converterOHLCVNxos(
++              dados.historyOHLCV.t, dados.historyOHLCV.o, dados.historyOHLCV.h,
++              dados.historyOHLCV.l, dados.historyOHLCV.c, dados.historyOHLCV.v
++            );
++            resolve(velas);
++          } else {
++            resolve([]);
++          }
++          return;
++        }
++
++        // Mensagens n├úo-history (watchOHLCV etc) s├úo ignoradas durante batch
++      } catch (e) {
++        console.error('[WS] Erro processando mensagem durante batch:', e);
++      }
++    };
++
++    ws.send(JSON.stringify({
++      method: 'GET_HISTORY',
++      params: { symbol, interval: '1', to, countback: count, firstDataRequest: false },
++    }));
++  });
+ }
+ 
+ class ServicoVelas {
+-  private ws: WebSocket | null = null;
+-  private velasPorAtivo: Record<string, Vela[]> = {}; // Segrega├º├úo por ativo
+-  private listeners: Set<VelaListener> = new Set();
++  // Conex├úo real-time (para watchOHLCV em Corretora/usePuma)
++  private wsRealtime: WebSocket | null = null;
+   private symbolAtual: string = '';
+   private intervalAtual: string = '1';
+-  private conectando: boolean = false;
+   private erro: string | null = null;
+-  private reconectarTimer: ReturnType<typeof setTimeout> | null = null;
+-  private filaMensagens: string[] = [];
+-  private loadingHistory: Set<string> = new Set();
+-  private historyResolvers: HistoryResolver[] = [];
++
++  // Cache de dados carregados (por ativo)
++  private velasPorAtivo: Record<string, Vela[]> = {};
++
++  // Listeners para updates real-time
++  private listeners: Set<VelaListener> = new Set();
++
++  // Abort controllers para carregamentos em andamento
++  private loadingAborts: Map<string, AbortController> = new Map();
++
++  // ==========================================
++  // CONEX├âO REAL-TIME (para watchOHLCV)
++  // ==========================================
+ 
+   conectar(symbol: string, interval: string = '1'): void {
+     const wsSymbol = mapearSymbol(symbol);
+-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) && this.symbolAtual === wsSymbol && this.intervalAtual === interval) return;
++
++    // Mesma conex├úo j├í ativa ÔÇö nada a fazer
++    if (this.wsRealtime?.readyState === WebSocket.OPEN && this.symbolAtual === wsSymbol && this.intervalAtual === interval) return;
+ 
+     this.symbolAtual = wsSymbol;
+     this.intervalAtual = interval;
+     this.erro = null;
+ 
+-    // Fechar conex├úo existente ao mudar de s├¡mbolo ÔÇö evita conflito de inscri├º├Áes
+-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+-      console.log(`[WS] Fechando conex├úo anterior para reconectar com ${wsSymbol}`);
+-      if (this.reconectarTimer) { clearTimeout(this.reconectarTimer); this.reconectarTimer = null; }
+-      const oldWs = this.ws;
+-      // Remover handlers ANTES de fechar ÔÇö impede que onclose agende reconex├úo fantasma
+-      oldWs.onclose = null;
+-      oldWs.onerror = null;
+-      oldWs.onmessage = null;
+-      this.ws = null;
+-      this.conectando = false;
+-      oldWs.close();
++    // Fechar conex├úo existente (sem reconex├úo fantasma)
++    if (this.wsRealtime) {
++      const old = this.wsRealtime;
++      old.onclose = null;
++      old.onerror = null;
++      old.onmessage = null;
++      this.wsRealtime = null;
++      try { old.close(); } catch {}
+     }
+ 
+-    this.iniciarNxosConnection(wsSymbol, interval);
+-    // GET_HISTORY removido daqui ÔÇö carregarHistoricoLongo cuida de todo o hist├│rico
+-    // Isso evita race condition onde a resposta de 300 velas rouba o resolver do batch 0
+-  }
+-
+-  private async waitOpen(): Promise<boolean> {
+-    if (this.ws?.readyState === WebSocket.OPEN) return true;
+-
+-    return new Promise((resolve) => {
+-      let attempts = 0;
+-      const check = () => {
+-        attempts++;
+-        if (this.ws?.readyState === WebSocket.OPEN) {
+-          resolve(true);
+-        } else if (attempts > 150) { // 15 seconds timeout
+-          resolve(false);
+-        } else {
+-          setTimeout(check, 100);
+-        }
+-      };
+-      check();
+-    });
++    this.iniciarRealtimeConnection(wsSymbol, interval);
+   }
+ 
+-  private iniciarNxosConnection(symbol: string, interval: string) {
+-    if (this.conectando) return;
+-    this.conectando = true;
++  private iniciarRealtimeConnection(symbol: string, interval: string) {
+     try {
+-      this.ws = new WebSocket(WS_NXOS);
+-
+-      this.ws.onopen = () => {
+-        this.conectando = false;
+-        this.filaMensagens.forEach(msg => this.ws?.send(msg));
+-        this.filaMensagens = [];
+-        // Use os valores mais recentes (symbolAtual e intervalAtual)
+-        if (this.symbolAtual) {
+-          this.ws?.send(JSON.stringify({
+-            method: 'SUBSCRIBE',
+-            params: { symbol: this.symbolAtual, type: 'watchOHLCV', interval: this.intervalAtual },
+-          }));
+-        }
++      const ws = new WebSocket(WS_NXOS);
++
++      ws.onopen = () => {
++        enviarSubscribe(ws, symbol, interval);
+         this.notificarEstado();
+       };
+ 
+-      this.ws.onmessage = (event) => {
++      ws.onmessage = (event) => {
+         try {
+           const dados = JSON.parse(event.data);
+-          let ativoResp = '';
+-          let novasVelas: Vela[] = [];
+-
+-          if (dados.historyOHLCV && dados.historyOHLCV.s === 'ok') {
+-            ativoResp = mapearSymbol(dados.historyOHLCV.s_name || this.symbolAtual);
+-            novasVelas = converterOHLCVNxos(dados.historyOHLCV.t, dados.historyOHLCV.o, dados.historyOHLCV.h, dados.historyOHLCV.l, dados.historyOHLCV.c, dados.historyOHLCV.v);
+-            console.log(`[WS] historyOHLCV: ${novasVelas.length} velas para ${ativoResp} (s_name=${dados.historyOHLCV.s_name}), resolvers pendentes: ${this.historyResolvers.length}`);
+-
+-            // Resolver primeiro Promise pendente para este symbol
+-            const idx = this.historyResolvers.findIndex(r => r.symbol === ativoResp);
+-            if (idx !== -1) {
+-              const { resolve, timeoutId } = this.historyResolvers[idx];
+-              this.historyResolvers.splice(idx, 1);
+-              clearTimeout(timeoutId);
+-              console.log(`[WS] Resolvendo Promise para ${ativoResp} com ${novasVelas.length} velas`);
+-              resolve(novasVelas);
+-            } else {
+-              console.log(`[WS] Nenhum resolver pendente para ${ativoResp} ÔÇö dados mergeados normalmente`);
++
++          if (dados.watchOHLCV && dados.watchOHLCV.s === 'ok') {
++            const ativoResp = mapearSymbol(dados.watchOHLCV.s_name || this.symbolAtual);
++            const novasVelas = converterOHLCVNxos(
++              dados.watchOHLCV.t, dados.watchOHLCV.o, dados.watchOHLCV.h,
++              dados.watchOHLCV.l, dados.watchOHLCV.c, dados.watchOHLCV.v
++            );
++            if (novasVelas.length > 0) {
++              this.mergeVelas(ativoResp, novasVelas);
+             }
+-          } else if (dados.watchOHLCV && dados.watchOHLCV.s === 'ok') {
+-            ativoResp = mapearSymbol(dados.watchOHLCV.s_name || this.symbolAtual);
+-            novasVelas = converterOHLCVNxos(dados.watchOHLCV.t, dados.watchOHLCV.o, dados.watchOHLCV.h, dados.watchOHLCV.l, dados.watchOHLCV.c, dados.watchOHLCV.v);
+           }
++          // historyOHLCV ignorado na conex├úo real-time
++        } catch {}
++      };
+ 
+-          if (novasVelas.length > 0 && ativoResp) {
+-            this.mergeVelas(ativoResp, novasVelas);
+-          }
+-        } catch (e) { console.error("WS Error processing message:", e); }
++      ws.onerror = () => {
++        this.erro = 'Erro na conex├úo WebSocket NXOS';
++        this.notificarEstado();
+       };
+ 
+-      this.ws.onerror = () => this.tratarErroWS();
+-      this.ws.onclose = () => this.tratarCloseWS();
++      ws.onclose = () => {
++        // Reconectar apenas se ainda for o WebSocket ativo
++        if (this.wsRealtime === ws && this.symbolAtual) {
++          setTimeout(() => {
++            if (this.wsRealtime === ws && this.symbolAtual) {
++              this.iniciarRealtimeConnection(this.symbolAtual, this.intervalAtual);
++            }
++          }, 5000);
++        }
++        this.notificarEstado();
++      };
++
++      this.wsRealtime = ws;
+     } catch {
+       this.erro = 'Falha ao conectar ao NXOS WebSocket';
+-      this.conectando = false;
+       this.notificarEstado();
+     }
+   }
+ 
+-  private mergeVelas(ativo: string, novas: Vela[]) {
+-    if (!this.velasPorAtivo[ativo]) this.velasPorAtivo[ativo] = [];
+-    const listaExistente = this.velasPorAtivo[ativo];
+-
+-    // Otimiza├º├úo O(N) usando Map para deduplica├º├úo
+-    const mapa = new Map<number, Vela>();
+-    listaExistente.forEach(v => mapa.set(v.timestamp, v));
+-    novas.forEach(v => mapa.set(v.timestamp, v));
++  // ==========================================
++  // CARREGAMENTO HIST├ôRICO (conex├úo dedicada)
++  // ==========================================
++
++  async carregarHistoricoLongo(
++    symbol: string,
++    targetTimestampInicio: number,
++    targetTimestampFim: number,
++    onProgress?: (velaCount: number) => void,
++    abortSignal?: AbortSignal
++  ): Promise<void> {
++    const wsSymbol = mapearSymbol(symbol);
+ 
+-    const listaFinal = Array.from(mapa.values()).sort((a, b) => a.timestamp - b.timestamp);
++    // Cancelar carregamento anterior deste s├¡mbolo
++    const prevAbort = this.loadingAborts.get(wsSymbol);
++    if (prevAbort) prevAbort.abort();
+ 
+-    // Limite de seguran├ºa aumentado para 50.000 velas (~34 dias M1)
+-    this.velasPorAtivo[ativo] = listaFinal.slice(-50000);
++    const localAbort = new AbortController();
++    this.loadingAborts.set(wsSymbol, localAbort);
+ 
+-    // Notificar sempre que houver novos dados para qualquer ativo
+-    this.notificarListeners(ativo);
+-  }
+-
+-  private enfileirarOuEnviar(payload: string) {
+-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+-      this.filaMensagens.push(payload);
+-    } else {
+-      this.ws.send(payload);
++    // Se caller passou abort signal, propagar
++    if (abortSignal) {
++      abortSignal.addEventListener('abort', () => localAbort.abort(), { once: true });
+     }
+-  }
+ 
+-  private requisitarHistorico(symbol: string, interval: string, count: number, to?: number, isFirst: boolean = false) {
+-    const timestamp = to || Math.floor(Date.now() / 1000);
+-    const payload = JSON.stringify({
+-      method: 'GET_HISTORY',
+-      params: { symbol, interval, to: timestamp, countback: count, firstDataRequest: isFirst },
+-    });
+-    this.enfileirarOuEnviar(payload);
+-  }
++    // Limpar dados antigos deste ativo
++    this.velasPorAtivo[wsSymbol] = [];
+ 
+-  private requisitarHistoricoAsync(symbol: string, interval: string, count: number, to?: number, isFirst: boolean = false): Promise<Vela[]> {
+-    return new Promise((resolve) => {
+-      const timeoutId = setTimeout(() => {
+-        const idx = this.historyResolvers.findIndex(r => r.resolve === resolve);
+-        if (idx !== -1) {
+-          this.historyResolvers.splice(idx, 1);
+-          console.warn(`[WS] Timeout esperando historyOHLCV para ${symbol}`);
+-          resolve([]);
+-        }
+-      }, 10000);
+-
+-      this.historyResolvers.push({ symbol, resolve, timeoutId });
+-      this.requisitarHistorico(symbol, interval, count, to, isFirst);
+-    });
+-  }
++    console.log(`[WS] Carregando hist├│rico: ${wsSymbol}, ${new Date(targetTimestampInicio * 1000).toISOString()} ÔåÆ ${new Date(targetTimestampFim * 1000).toISOString()}`);
+ 
+-  async carregarHistoricoLongo(symbol: string, targetTimestampInicio: number, targetTimestampFim: number, onProgress?: (velaCount: number) => void, abortSignal?: AbortSignal): Promise<void> {
+-    const wsSymbol = mapearSymbol(symbol);
+-    if (this.loadingHistory.has(wsSymbol)) {
+-      console.log(`[WS] J├í carregando hist├│rico para ${wsSymbol}, ignorando`);
++    // Abrir conex├úo DEDICADA para carregamento
++    const ws = await abrirConexao();
++    if (!ws) {
++      console.error(`[WS] Falha ao abrir conex├úo dedicada para ${wsSymbol}`);
++      this.loadingAborts.delete(wsSymbol);
+       return;
+     }
+-    this.loadingHistory.add(wsSymbol);
+ 
+-    try {
+-      const countPerRequest = 1000;
+-      let currentTo = targetTimestampFim;
+-
+-      // Garantir conex├úo
+-      if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+-        this.iniciarNxosConnection(wsSymbol, '1');
+-      }
+-      this.enfileirarOuEnviar(JSON.stringify({
+-        method: 'SUBSCRIBE',
+-        params: { symbol: wsSymbol, type: 'watchOHLCV', interval: '1' },
+-      }));
+-
+-      const isOpened = await this.waitOpen();
+-      if (!isOpened) {
+-        console.error("[ServicoVelas] Timeout aguardando WebSocket para hist├│rico:", symbol);
+-        return;
+-      }
++    // Enviar SUBSCRIBE (necess├írio para GET_HISTORY funcionar no NXOS)
++    enviarSubscribe(ws, wsSymbol, '1');
+ 
+-      if (abortSignal?.aborted) return;
+-
+-      const checkCoverage = () => {
+-        const lista = this.velasPorAtivo[wsSymbol] || [];
+-        if (lista.length === 0) return false;
+-        return lista[0].timestamp <= targetTimestampInicio + 60 || lista.length > 30000;
+-      };
+-
+-      console.log(`[WS] Iniciando loop de carregamento para ${wsSymbol}`);
++    // Aguardar um pouco ap├│s SUBSCRIBE para o servidor processar
++    await new Promise(r => setTimeout(r, 500));
+ 
++    try {
++      let currentTo = targetTimestampFim;
+       let emptyRetries = 0;
+-      for (let i = 0; i < 35; i++) {
+-        if (abortSignal?.aborted) {
+-          console.log(`[WS] Carregamento cancelado para ${wsSymbol} na itera├º├úo ${i}`);
+-          break;
+-        }
+ 
+-        if (checkCoverage()) {
+-          console.log(`[WS] Cobertura atingida para ${wsSymbol}: ${(this.velasPorAtivo[wsSymbol] || []).length} velas em ${i} itera├º├Áes`);
++      for (let batch = 0; batch < 50; batch++) {
++        if (localAbort.signal.aborted) {
++          console.log(`[WS] Carregamento cancelado: ${wsSymbol} no batch ${batch}`);
+           break;
+         }
+ 
+-        console.log(`[WS] Requisitando batch ${i} para ${wsSymbol}, to=${currentTo}`);
+-        const novasVelas = await this.requisitarHistoricoAsync(wsSymbol, '1', countPerRequest, currentTo, i === 0);
+-
+-        if (abortSignal?.aborted) {
+-          console.log(`[WS] Carregamento cancelado para ${wsSymbol} ap├│s batch ${i}`);
++        // Verificar se WS ainda est├í aberto
++        if (ws.readyState !== WebSocket.OPEN) {
++          console.warn(`[WS] Conex├úo fechada durante carregamento de ${wsSymbol} no batch ${batch}`);
+           break;
+         }
+ 
+-        const lista = this.velasPorAtivo[wsSymbol] || [];
+-        console.log(`[WS] Itera├º├úo ${i}: ${lista.length} velas total, recebeu ${novasVelas.length}`);
++        console.log(`[WS] Batch ${batch}: ${wsSymbol}, to=${currentTo} (${new Date(currentTo * 1000).toISOString()})`);
+ 
+-        if (onProgress) onProgress(lista.length);
++        const velas = await fetchBatch(ws, wsSymbol, currentTo, 1000);
+ 
+-        if (novasVelas.length === 0) {
++        if (localAbort.signal.aborted) break;
++
++        if (velas.length === 0) {
+           emptyRetries++;
+-          if (emptyRetries <= 2) {
+-            console.log(`[WS] Batch vazio, retry ${emptyRetries}/2 para ${wsSymbol}`);
++          if (emptyRetries <= 3) {
++            console.log(`[WS] Batch vazio, retry ${emptyRetries}/3 para ${wsSymbol}`);
++            await new Promise(r => setTimeout(r, 1000)); // Esperar 1s antes de retry
+             continue;
+           }
+-          console.log(`[WS] Timeout/vazio ap├│s ${emptyRetries} retries para ${wsSymbol}, parando`);
++          console.log(`[WS] ${emptyRetries} batches vazios consecutivos para ${wsSymbol}, parando`);
+           break;
+         }
+         emptyRetries = 0;
+ 
+-        if (lista.length > 0) {
+-          currentTo = lista[0].timestamp - 60;
+-        } else if (i === 0) {
+-          currentTo = Math.floor(Date.now() / 1000);
+-        }
+-      }
+-    } finally {
+-      this.loadingHistory.delete(wsSymbol);
+-    }
+-  }
++        // Merge velas no cache
++        this.mergeVelas(wsSymbol, velas);
++        const totalCarregadas = (this.velasPorAtivo[wsSymbol] || []).length;
+ 
+-  obterVelasDeAtivo(ativo: string): Vela[] {
+-    const wsSymbol = mapearSymbol(ativo);
+-    return [...(this.velasPorAtivo[wsSymbol] || [])];
+-  }
++        console.log(`[WS] Batch ${batch} OK: +${velas.length} velas, total=${totalCarregadas}`);
+ 
+-  private tratarErroWS() {
+-    this.erro = 'Erro na conex├úo WebSocket NXOS';
+-    this.conectando = false;
+-    this.notificarEstado();
+-  }
++        if (onProgress) onProgress(totalCarregadas);
+ 
+-  private tratarCloseWS() {
+-    this.conectando = false;
+-    if (this.symbolAtual) {
+-      this.reconectarTimer = setTimeout(() => {
+-        if (this.symbolAtual) this.iniciarNxosConnection(this.symbolAtual, this.intervalAtual);
+-      }, 5000);
++        // Mover cursor para tr├ís (baseado nas velas DESTE batch, n├úo do cache global)
++        const maisAntiga = velas.reduce((min, v) => v.timestamp < min ? v.timestamp : min, Infinity);
++        currentTo = maisAntiga - 60;
++
++        // Verificar cobertura
++        if (currentTo <= targetTimestampInicio) {
++          console.log(`[WS] Cobertura completa para ${wsSymbol}: alcan├ºou timestamp in├¡cio`);
++          break;
++        }
++        if (totalCarregadas > 35000) {
++          console.log(`[WS] Limite de velas atingido para ${wsSymbol}: ${totalCarregadas}`);
++          break;
++        }
++
++        // Pequena pausa entre batches para n├úo sobrecarregar o servidor
++        await new Promise(r => setTimeout(r, 200));
++      }
++
++      const total = (this.velasPorAtivo[wsSymbol] || []).length;
++      console.log(`[WS] Carregamento finalizado: ${wsSymbol}, ${total} velas total`);
++    } finally {
++      // Sempre fechar conex├úo dedicada
++      try { ws.close(); } catch {}
++      this.loadingAborts.delete(wsSymbol);
+     }
+-    this.notificarEstado();
+   }
+ 
+   cancelarCarregamento(symbol: string): void {
+     const wsSymbol = mapearSymbol(symbol);
+-    this.loadingHistory.delete(wsSymbol);
+-
+-    // Limpar resolvers pendentes deste symbol (desbloqueia awaits pendentes)
+-    const remaining: HistoryResolver[] = [];
+-    for (const resolver of this.historyResolvers) {
+-      if (resolver.symbol === wsSymbol) {
+-        clearTimeout(resolver.timeoutId);
+-        resolver.resolve([]);
+-      } else {
+-        remaining.push(resolver);
+-      }
++    const abort = this.loadingAborts.get(wsSymbol);
++    if (abort) {
++      abort.abort();
++      this.loadingAborts.delete(wsSymbol);
+     }
+-    this.historyResolvers = remaining;
+   }
+ 
+-  desconectar(): void {
+-    if (this.reconectarTimer) clearTimeout(this.reconectarTimer);
+-    if (this.ws) {
+-      const s = this.ws;
+-      this.ws = null;
+-      s.close();
+-    }
+-    this.conectando = false;
+-    this.filaMensagens = [];
++  // ==========================================
++  // GERENCIAMENTO DE DADOS
++  // ==========================================
+ 
+-    // Limpar TODOS os resolvers pendentes
+-    for (const resolver of this.historyResolvers) {
+-      clearTimeout(resolver.timeoutId);
+-      resolver.resolve([]);
+-    }
+-    this.historyResolvers = [];
+-  }
++  private mergeVelas(ativo: string, novas: Vela[]) {
++    if (!this.velasPorAtivo[ativo]) this.velasPorAtivo[ativo] = [];
++    const existente = this.velasPorAtivo[ativo];
+ 
+-  limparHistorico(symbol?: string): void {
+-    if (symbol) {
+-      const wsSymbol = mapearSymbol(symbol);
+-      delete this.velasPorAtivo[wsSymbol];
+-    } else {
+-      this.velasPorAtivo = {};
+-    }
+-    this.notificarListeners();
+-  }
++    const mapa = new Map<number, Vela>();
++    existente.forEach(v => mapa.set(v.timestamp, v));
++    novas.forEach(v => mapa.set(v.timestamp, v));
+ 
+-  private notificarListeners(ativoAlvo?: string): void {
+-    const alvo = ativoAlvo || this.symbolAtual;
+-    if (!alvo) return;
++    this.velasPorAtivo[ativo] = Array.from(mapa.values())
++      .sort((a, b) => a.timestamp - b.timestamp)
++      .slice(-50000);
+ 
+-    const v = this.velasPorAtivo[alvo] || [];
+-    for (const listener of this.listeners) {
+-      listener([...v]);
+-    }
+-    window.dispatchEvent(new CustomEvent('trademaster:vela-atualizada', { detail: { ativo: alvo } }));
++    this.notificarListeners(ativo);
+   }
+ 
+-  private notificarEstado(): void {
+-    window.dispatchEvent(new CustomEvent('trademaster:ws-estado'));
++  obterVelasDeAtivo(ativo: string): Vela[] {
++    const wsSymbol = mapearSymbol(ativo);
++    return [...(this.velasPorAtivo[wsSymbol] || [])];
++  }
++
++  obterTodasVelas(): Vela[] {
++    return [...(this.velasPorAtivo[this.symbolAtual] || [])];
+   }
+ 
+   obterVelasDoQuadrante(quadranteNumero: number, referencia?: Date): Vela[] {
+@@ -448,18 +422,42 @@ class ServicoVelas {
+     return v.length > 0 ? v[v.length - 1] : null;
+   }
+ 
+-  obterTodasVelas(): Vela[] {
+-    return [...(this.velasPorAtivo[this.symbolAtual] || [])];
++  limparHistorico(symbol?: string): void {
++    if (symbol) {
++      delete this.velasPorAtivo[mapearSymbol(symbol)];
++    } else {
++      this.velasPorAtivo = {};
++    }
++    this.notificarListeners();
+   }
+ 
++  // ==========================================
++  // LISTENERS E ESTADO
++  // ==========================================
++
+   adicionarListener(fn: VelaListener): () => void {
+     this.listeners.add(fn);
+     return () => this.listeners.delete(fn);
+   }
+ 
++  private notificarListeners(ativoAlvo?: string): void {
++    const alvo = ativoAlvo || this.symbolAtual;
++    if (!alvo) return;
++
++    const v = this.velasPorAtivo[alvo] || [];
++    for (const listener of this.listeners) {
++      listener([...v]);
++    }
++    window.dispatchEvent(new CustomEvent('trademaster:vela-atualizada', { detail: { ativo: alvo } }));
++  }
++
++  private notificarEstado(): void {
++    window.dispatchEvent(new CustomEvent('trademaster:ws-estado'));
++  }
++
+   getEstado(): EstadoWebSocket {
+     return {
+-      conectado: this.ws?.readyState === WebSocket.OPEN || this.conectando,
++      conectado: this.wsRealtime?.readyState === WebSocket.OPEN,
+       symbol: this.symbolAtual,
+       ultimaVela: this.obterVelaAtual(),
+       erro: this.erro,
+@@ -467,7 +465,23 @@ class ServicoVelas {
+   }
+ 
+   estaConectado(): boolean {
+-    return this.ws?.readyState === WebSocket.OPEN;
++    return this.wsRealtime?.readyState === WebSocket.OPEN;
++  }
++
++  desconectar(): void {
++    // Cancelar todos os carregamentos
++    for (const [, abort] of this.loadingAborts) abort.abort();
++    this.loadingAborts.clear();
++
++    // Fechar conex├úo real-time
++    if (this.wsRealtime) {
++      const ws = this.wsRealtime;
++      ws.onclose = null;
++      ws.onerror = null;
++      ws.onmessage = null;
++      this.wsRealtime = null;
++      try { ws.close(); } catch {}
++    }
+   }
+ }
+ 
+
+commit 37c4631ea9574e74bcc8101d750e1d459f227e67
+Author: cleytin0101 <cleytonwalbi0101@gmail.com>
+Date:   Wed Mar 18 19:13:15 2026 -0300
+
+    fix: prevent phantom WebSocket reconnection when switching symbols
+    
+    When conectar() closes the old WebSocket to switch symbols, the onclose
+    handler was firing tratarCloseWS() which scheduled a reconnect after 5
+    seconds. This phantom reconnect replaced the new WebSocket mid-loading,
+    causing carregarHistoricoLongo to lose its connection and fail silently.
+    
+    Fix: remove onclose/onerror/onmessage handlers from the old WebSocket
+    before closing it, preventing the ghost reconnection timer.
+    
+    Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+diff --git a/trademaster/src/lib/websocket-velas.ts b/trademaster/src/lib/websocket-velas.ts
+index 5f16537..f949a75 100644
+--- a/trademaster/src/lib/websocket-velas.ts
++++ b/trademaster/src/lib/websocket-velas.ts
+@@ -119,6 +119,10 @@ class ServicoVelas {
+       console.log(`[WS] Fechando conex├úo anterior para reconectar com ${wsSymbol}`);
+       if (this.reconectarTimer) { clearTimeout(this.reconectarTimer); this.reconectarTimer = null; }
+       const oldWs = this.ws;
++      // Remover handlers ANTES de fechar ÔÇö impede que onclose agende reconex├úo fantasma
++      oldWs.onclose = null;
++      oldWs.onerror = null;
++      oldWs.onmessage = null;
+       this.ws = null;
+       this.conectando = false;
+       oldWs.close();

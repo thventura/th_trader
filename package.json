@@ -1,0 +1,10 @@
+{
+    "name": "guias-academy-server",
+    "version": "1.0.0",
+    "description": "Serverless Functions for Guias Academy",
+    "dependencies": {
+        "@supabase/supabase-js": "^2.39.0",
+        "socket.io-client": "^4.8.3",
+        "web-push": "^3.6.7"
+    }
+}
