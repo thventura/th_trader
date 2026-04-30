@@ -7,17 +7,17 @@
 
 export const BRANDING = {
   // ── Identidade ──────────────────────────────────────────────────────────────
-  appName: 'Guiaz Academy',
-  platformName: 'Apex Trader',   // nome do robô/plataforma de automação
+  appName: 'Virtus Trader',
+  platformName: 'Virtus Trader',   // nome do robô/plataforma de automação
 
   // ── Cor primária ─────────────────────────────────────────────────────────────
   // Injetada como variável CSS --color-apex-trader-primary em main.tsx
-  primaryColor: '#34de00',
+  primaryColor: '#3b82f6',
 
   // ── Logos (URLs públicas) ────────────────────────────────────────────────────
-  logoUrl: 'https://i.imgur.com/lynhn2b.png',
-  logoAlt: 'Guias Academy',
-  loginLogoUrl: 'https://i.imgur.com/HSEKOpO.png',
+  logoUrl: 'https://i.imgur.com/s8rY6qO.png',
+  logoAlt: 'Virtus Trader',
+  loginLogoUrl: 'https://i.imgur.com/s8rY6qO.png',
   loginBgMobileUrl: 'https://i.imgur.com/Ov80XMJ.png',
   loginBgDesktopUrl: 'https://i.imgur.com/wXgjFrV.png',
 
@@ -50,7 +50,7 @@ export const BRANDING = {
 
   // ── PWA / SEO ────────────────────────────────────────────────────────────────
   // shortName: nome curto exibido na tela inicial do celular (PWA)
-  shortName: 'Guias',
+  shortName: 'Virtus',
   // ogImageUrl: imagem de preview ao compartilhar o link em redes sociais
   ogImageUrl: 'https://i.imgur.com/FeQCDkj.png',
 

@@ -899,13 +899,13 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
       {/* Course Cover */}
       <div className="relative w-full h-[420px] md:h-[700px] rounded-[2rem] overflow-hidden glass-card border-none shadow-2xl">
         <img
-          src="https://i.imgur.com/rC760mh.jpeg"
+          src="https://i.imgur.com/kjWsdzj.png"
           alt="Capa do Curso"
           className="w-full h-full object-cover hidden md:block"
           referrerPolicy="no-referrer"
         />
         <img
-          src="https://i.imgur.com/w6QilE7.png"
+          src="https://i.imgur.com/kjWsdzj.png"
           alt="Capa do Curso Mobile"
           className="w-full h-full object-cover block md:hidden"
           referrerPolicy="no-referrer"

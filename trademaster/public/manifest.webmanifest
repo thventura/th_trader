@@ -1,11 +1,11 @@
 {
-  "name": "Guias Academy",
-  "short_name": "Guias",
+  "name": "Virtus Trader",
+  "short_name": "Virtus",
   "description": "Plataforma completa para traders — treinamentos, operações e automação.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#34de00",
+  "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
   "icons": [
     {
