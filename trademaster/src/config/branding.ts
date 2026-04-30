@@ -52,7 +52,7 @@ export const BRANDING = {
   // shortName: nome curto exibido na tela inicial do celular (PWA)
   shortName: 'Virtus',
   // ogImageUrl: imagem de preview ao compartilhar o link em redes sociais
-  ogImageUrl: 'https://i.imgur.com/FeQCDkj.png',
+  ogImageUrl: 'https://i.imgur.com/AgYPNZS.png',
 
   // ── FORK: arquivos estáticos que precisam de atualização manual ───────────────
   // Ao criar um fork para um cliente, atualize também:
