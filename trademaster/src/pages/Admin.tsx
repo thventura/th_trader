@@ -774,9 +774,9 @@ export default function Admin() {
                   <button
                     onClick={() => handleApproveUser(p.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black transition-all"
-                    style={{ background: '#34de00' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                    style={{ background: '#3b82f6' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
                   >
                     <CheckCircle size={13} /> Aprovar
                   </button>
@@ -915,7 +915,7 @@ export default function Admin() {
                           <button
                             onClick={(e) => { e.stopPropagation(); handleApproveUser(profile.id); }}
                             className="px-2 py-1 rounded-lg text-[10px] font-bold text-black"
-                            style={{ background: '#34de00' }}
+                            style={{ background: '#3b82f6' }}
                           >
                             Aprovar
                           </button>
@@ -988,7 +988,7 @@ export default function Admin() {
                         ? "bg-orange-500/10 text-orange-400 hover:bg-orange-500/20"
                         : "text-black hover:opacity-90"
                     )}
-                    style={(selectedProfile as any).tier !== 'premium' ? { background: '#34de00' } : undefined}
+                    style={(selectedProfile as any).tier !== 'premium' ? { background: '#3b82f6' } : undefined}
                   >
                     {(selectedProfile as any).tier === 'premium' ? 'Rebaixar p/ Gratuito' : 'Promover p/ Premium'}
                   </button>
@@ -1203,7 +1203,7 @@ export default function Admin() {
                       <button
                         onClick={() => handleApproveUser(selectedProfile.id)}
                         className="flex-1 text-black text-xs font-bold py-2 rounded-lg transition-all"
-                        style={{ background: '#34de00' }}
+                        style={{ background: '#3b82f6' }}
                       >
                         Aprovar Acesso
                       </button>
@@ -1502,7 +1502,7 @@ export default function Admin() {
           <button
             type="submit"
             disabled={enrollLoading}
-            className="w-full bg-apex-trader-primary hover:bg-[#2bc900] disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-4 rounded-xl shadow-lg shadow-apex-trader-primary/20 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-apex-trader-primary hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-4 rounded-xl shadow-lg shadow-apex-trader-primary/20 transition-all flex items-center justify-center gap-2"
           >
             {enrollLoading ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
             {enrollLoading ? 'Criando acesso...' : 'Finalizar Matrícula'}
@@ -1626,9 +1626,9 @@ export default function Admin() {
                       <button
                         onClick={() => handleAprovar(c.id)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black transition-all"
-                        style={{ background: '#34de00' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                        onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                        style={{ background: '#3b82f6' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                        onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
                       >
                         <CheckCircle2 size={13} /> Aprovar
                       </button>
@@ -1662,9 +1662,9 @@ export default function Admin() {
                     onClick={() => handleResponder(c.id)}
                     disabled={!(respostas[c.id] || '').trim()}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-black transition-all disabled:opacity-40"
-                    style={{ background: '#34de00' }}
-                    onMouseEnter={e => { if ((respostas[c.id] || '').trim()) e.currentTarget.style.background = '#2bc900'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#34de00'; }}
+                    style={{ background: '#3b82f6' }}
+                    onMouseEnter={e => { if ((respostas[c.id] || '').trim()) e.currentTarget.style.background = '#2563eb'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#3b82f6'; }}
                   >
                     <Send size={12} /> {c.resposta_admin ? 'Atualizar Resposta' : 'Responder'}
                   </button>
@@ -1727,9 +1727,9 @@ export default function Admin() {
             <button
               onClick={() => handleSaveConfigProva(configProva)}
               className="px-5 py-2.5 rounded-xl text-sm font-bold text-black transition-all"
-              style={{ background: '#34de00' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+              style={{ background: '#3b82f6' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
             >
               Salvar Configurações
             </button>
@@ -1745,9 +1745,9 @@ export default function Admin() {
             <button
               onClick={() => { setQuestaoForm(emptyQuestao()); setShowQuestaoForm(true); }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-black text-xs font-bold transition-all"
-              style={{ background: '#34de00' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+              style={{ background: '#3b82f6' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
             >
               <Plus size={14} /> Nova Questão
             </button>
@@ -1814,9 +1814,9 @@ export default function Admin() {
                   onClick={() => handleSaveQuestao(questaoForm)}
                   disabled={!questaoForm.texto.trim() || questaoForm.opcoes.some(o => !o.trim())}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black transition-all disabled:opacity-40"
-                  style={{ background: '#34de00' }}
-                  onMouseEnter={e => { if (questaoForm.texto.trim()) e.currentTarget.style.background = '#2bc900'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#34de00'; }}
+                  style={{ background: '#3b82f6' }}
+                  onMouseEnter={e => { if (questaoForm.texto.trim()) e.currentTarget.style.background = '#2563eb'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#3b82f6'; }}
                 >
                   {questaoForm.id ? 'Salvar' : 'Adicionar'}
                 </button>
@@ -4266,8 +4266,8 @@ const MetricsQuadrantesContent = ({
               <AreaChart data={drawdown?.chart}>
                 <defs>
                   <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#34de00" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#34de00" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorDD" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
@@ -4284,7 +4284,7 @@ const MetricsQuadrantesContent = ({
                 <Area 
                   type="monotone" 
                   dataKey="saldo" 
-                  stroke="#34de00" 
+                  stroke="#3b82f6"
                   fillOpacity={1} 
                   fill="url(#colorSaldo)" 
                   name="Saldo Acumulado"
@@ -5531,7 +5531,7 @@ const MetricsQuadrantesContent = ({
                     </div>
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                       <div 
-                        className={cn("h-full transition-all duration-1000", rate >= 60 ? "bg-apex-trader-primary shadow-[0_0_10px_rgba(52,222,0,0.3)]" : "bg-amber-500")}
+                        className={cn("h-full transition-all duration-1000", rate >= 60 ? "bg-apex-trader-primary shadow-[0_0_10px_rgba(59,130,246,0.3)]" : "bg-amber-500")}
                         style={{ width: `${rate}%` }} 
                       />
                     </div>

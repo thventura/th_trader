@@ -30,7 +30,7 @@ const CerebroAnimado = React.memo(function CerebroAnimado() {
         className="absolute inset-0 z-0"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(52,222,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(52,222,0,0.04) 1px, transparent 1px)',
+            'linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px)',
           backgroundSize: '60px 60px',
           maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
           WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
@@ -44,7 +44,7 @@ const CerebroAnimado = React.memo(function CerebroAnimado() {
           width: '60%',
           height: '60%',
           background:
-            'radial-gradient(circle, rgba(52, 222, 0, 0.35) 0%, rgba(52, 222, 0, 0.12) 40%, transparent 70%)',
+            'radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.12) 40%, transparent 70%)',
           filter: 'blur(30px)',
         }}
       />
@@ -74,8 +74,8 @@ const CerebroAnimado = React.memo(function CerebroAnimado() {
             left: pos.left,
             width: '4px',
             height: '4px',
-            background: '#34de00',
-            boxShadow: '0 0 6px 2px rgba(52, 222, 0, 0.6), 0 0 12px 4px rgba(52, 222, 0, 0.3)',
+            background: '#3b82f6',
+            boxShadow: '0 0 6px 2px rgba(59, 130, 246, 0.6), 0 0 12px 4px rgba(59, 130, 246, 0.3)',
             animationDelay: `${i * 0.5}s`,
             animationDuration: '3s',
           }}

@@ -124,7 +124,7 @@ function PreviewDashboard() {
             </div>
             <div className="flex-1 flex items-end gap-[1px] md:gap-[2px] pl-6">
               {[40, 45, 38, 55, 50, 62, 58, 70, 65, 75, 72, 80, 78, 85, 82, 88, 90, 88, 95, 92, 100].map((h, i) => (
-                <div key={i} className="flex-1 rounded-t-sm transition-all" style={{ height: `${h}%`, background: i > 0 && h > [40, 45, 38, 55, 50, 62, 58, 70, 65, 75, 72, 80, 78, 85, 82, 88, 90, 88, 95, 92, 100][i - 1] ? '#34de00' : '#ef4444', opacity: 0.8 }} />
+                <div key={i} className="flex-1 rounded-t-sm transition-all" style={{ height: `${h}%`, background: i > 0 && h > [40, 45, 38, 55, 50, 62, 58, 70, 65, 75, 72, 80, 78, 85, 82, 88, 90, 88, 95, 92, 100][i - 1] ? '#3b82f6' : '#ef4444', opacity: 0.8 }} />
               ))}
             </div>
           </div>
@@ -137,7 +137,7 @@ function PreviewDashboard() {
             <div className="relative w-16 h-16 md:w-20 md:h-20">
               <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                 <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
-                <circle cx="18" cy="18" r="14" fill="none" stroke="#34de00" strokeWidth="4" strokeDasharray="62 88" strokeLinecap="round" />
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#3b82f6" strokeWidth="4" strokeDasharray="62 88" strokeLinecap="round" />
                 <circle cx="18" cy="18" r="14" fill="none" stroke="#f59e0b" strokeWidth="4" strokeDasharray="26 88" strokeDashoffset="-62" strokeLinecap="round" />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -307,7 +307,7 @@ function PreviewMindset() {
             <div className="w-full h-4 bg-slate-800 border border-white/5 rounded-lg flex items-center px-2"><span className="text-[7px] text-slate-400">7.5</span></div>
           </div>
           <div className="grid grid-cols-2 gap-1.5 mb-2">
-            {[{ l: 'Estresse', v: 2, c: '#10b981' }, { l: 'Energia', v: 4, c: '#34de00' }, { l: 'Concentração', v: 4, c: '#34de00' }, { l: 'Medo de Perda', v: 2, c: '#10b981' }].map(s => (
+            {[{ l: 'Estresse', v: 2, c: '#10b981' }, { l: 'Energia', v: 4, c: '#3b82f6' }, { l: 'Concentração', v: 4, c: '#3b82f6' }, { l: 'Medo de Perda', v: 2, c: '#10b981' }].map(s => (
               <div key={s.l}><div className="flex justify-between text-[7px] mb-0.5"><span className="text-slate-400">{s.l}</span><span className="font-bold" style={{ color: s.c }}>{s.v}/5</span></div><div className="w-full h-1 bg-white/5 rounded-full"><div className="h-full rounded-full" style={{ width: `${s.v * 20}%`, background: s.c }} /></div></div>
             ))}
           </div>
@@ -351,7 +351,7 @@ function PreviewAulas() {
           </div>
         </div>
         <div className="mt-2 h-2 bg-white/5 rounded-full overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: '27%', background: 'linear-gradient(90deg, #34de00, #2bc900)', boxShadow: '0 0 12px rgba(52,222,0,0.4)' }} />
+          <div className="h-full rounded-full" style={{ width: '27%', background: 'linear-gradient(90deg, #3b82f6, #2563eb)', boxShadow: '0 0 12px rgba(59,130,246,0.4)' }} />
         </div>
       </MiniCard>
 
@@ -406,7 +406,7 @@ function PreviewDesafio() {
           <Flame size={8} /> Desafio Protocolo 3P · Março 2026
         </div>
         <h2 className="text-sm md:text-lg font-black">
-          <span className="bg-gradient-to-r from-apex-trader-primary to-[#7fff00] bg-clip-text text-transparent">Plano · Progresso · Psicologia</span>
+          <span className="bg-gradient-to-r from-apex-trader-primary to-[#93c5fd] bg-clip-text text-transparent">Plano · Progresso · Psicologia</span>
         </h2>
       </div>
 
@@ -573,7 +573,7 @@ function PreviewComunidades() {
         {[
           { name: 'Discord', sub: 'Servidor da comunidade', desc: 'Interaja em tempo real com outros traders', color: '#5865F2', btn: 'Entrar no Discord' },
           { name: 'WhatsApp', sub: 'Grupo exclusivo', desc: 'Alertas, dicas e sinais operacionais', color: '#25D366', btn: 'Entrar no WhatsApp' },
-          { name: 'Suporte', sub: 'Atendimento direto', desc: 'Dúvidas com equipe e mentores', color: '#34de00', btn: 'Fale Conosco' },
+          { name: 'Suporte', sub: 'Atendimento direto', desc: 'Dúvidas com equipe e mentores', color: '#3b82f6', btn: 'Fale Conosco' },
         ].map((c) => (
           <MiniCard key={c.name} className="p-2.5 text-center">
             <div className="w-8 h-8 rounded-xl mx-auto mb-1.5 flex items-center justify-center" style={{ background: `${c.color}15` }}>
@@ -861,9 +861,9 @@ export default function Landing() {
       {/* ===== SHOOTING STARS BACKGROUND ===== */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="stars absolute inset-0" />
-        <ShootingStars starColor="#34de00" trailColor="#7fff00" minSpeed={15} maxSpeed={35} minDelay={1000} maxDelay={3000} />
-        <ShootingStars starColor="#34de00" trailColor="#2bc900" minSpeed={10} maxSpeed={25} minDelay={2000} maxDelay={4500} />
-        <ShootingStars starColor="#7fff00" trailColor="#34de00" minSpeed={20} maxSpeed={40} minDelay={1500} maxDelay={3500} />
+        <ShootingStars starColor="#3b82f6" trailColor="#93c5fd" minSpeed={15} maxSpeed={35} minDelay={1000} maxDelay={3000} />
+        <ShootingStars starColor="#3b82f6" trailColor="#2563eb" minSpeed={10} maxSpeed={25} minDelay={2000} maxDelay={4500} />
+        <ShootingStars starColor="#93c5fd" trailColor="#3b82f6" minSpeed={20} maxSpeed={40} minDelay={1500} maxDelay={3500} />
       </div>
 
       {/* ===== HEADER ===== */}
@@ -884,7 +884,7 @@ export default function Landing() {
             <button onClick={() => navigate('/login')} className="hidden md:inline-flex items-center gap-2 border border-white/12 text-white font-semibold text-sm px-6 py-2.5 rounded-xl hover:bg-white/5 transition-all">
               Entrar
             </button>
-            <a href="https://pay.cakto.com.br/anasupy_808501" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-apex-trader-primary text-black font-bold text-sm px-6 py-2.5 rounded-xl hover:shadow-[0_0_30px_rgba(52,222,0,0.4)] transition-all">
+            <a href="https://pay.cakto.com.br/anasupy_808501" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-apex-trader-primary text-black font-bold text-sm px-6 py-2.5 rounded-xl hover:shadow-[0_0_30px_rgba(59,130,246,0.4)] transition-all">
               Comprar
             </a>
             <button className="md:hidden p-2 text-white" onClick={() => setMobileMenuOpen(true)}>
@@ -920,14 +920,14 @@ export default function Landing() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0"
             style={{
-              backgroundImage: 'linear-gradient(rgba(52,222,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(52,222,0,0.04) 1px, transparent 1px)',
+              backgroundImage: 'linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px)',
               backgroundSize: '60px 60px',
               maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
               WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
             }}
           />
           <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[800px] h-[600px]"
-            style={{ background: 'radial-gradient(ellipse, rgba(52,222,0,0.12) 0%, transparent 70%)' }}
+            style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.12) 0%, transparent 70%)' }}
           />
         </div>
 
@@ -950,14 +950,14 @@ export default function Landing() {
           </p>
 
           {/* VSL Video Container */}
-          <div className="relative aspect-video w-full rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(52,222,0,0.15)] overflow-hidden mb-12">
+          <div className="relative aspect-video w-full rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(59,130,246,0.15)] overflow-hidden mb-12">
             <CustomVideoPlayer videoId="C2qoRxiOkhs" />
           </div>
 
           {/* Bottom VSL Callout */}
           <div className="space-y-8">
             <div className="flex flex-col items-center gap-6">
-              <a href="https://pay.cakto.com.br/anasupy_808501" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 bg-apex-trader-primary text-black font-black text-lg px-12 py-5 rounded-2xl hover:shadow-[0_0_40px_rgba(52,222,0,0.5)] transition-all scale-100 hover:scale-105 active:scale-95">
+              <a href="https://pay.cakto.com.br/anasupy_808501" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 bg-apex-trader-primary text-black font-black text-lg px-12 py-5 rounded-2xl hover:shadow-[0_0_40px_rgba(59,130,246,0.5)] transition-all scale-100 hover:scale-105 active:scale-95">
                 COMECE JÁ <ArrowRight size={22} />
               </a>
               
@@ -1106,7 +1106,7 @@ export default function Landing() {
               </div>
 
               <div className="space-y-8 max-w-[600px]">
-                <div className="w-24 h-1.5 bg-apex-trader-primary rounded-full shadow-[0_0_20px_rgba(52,222,0,0.5)]" />
+                <div className="w-24 h-1.5 bg-apex-trader-primary rounded-full shadow-[0_0_20px_rgba(59,130,246,0.5)]" />
                 
                 <div className="space-y-6">
                   <p className="text-xl md:text-3xl text-white font-bold leading-relaxed">
@@ -1152,7 +1152,7 @@ export default function Landing() {
         <div className="relative z-10 max-w-[1400px] mx-auto px-6 text-center w-full">
           <div className="max-w-[1100px] mx-auto space-y-4 lg:space-y-6">
             <h2 className="text-3xl md:text-5xl lg:text-7xl font-black leading-tight text-white tracking-tighter uppercase">
-              <span className="text-apex-trader-primary drop-shadow-[0_0_20px_rgba(52,222,0,0.6)]">
+              <span className="text-apex-trader-primary drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]">
                 NÃO É UM CURSO. 
               </span>
               <br />
@@ -1236,7 +1236,7 @@ export default function Landing() {
       <div className="w-full h-px bg-gradient-to-r from-transparent via-trademaster-blue/15 to-transparent" />
 
       {/* ===== 10. RESUMO DA OFERTA & CTA FINAL ===== */}
-      <section className="py-28 md:py-36" id="resumo" style={{ background: 'linear-gradient(180deg, transparent, rgba(52,222,0,0.03) 50%, transparent)' }}>
+      <section className="py-28 md:py-36" id="resumo" style={{ background: 'linear-gradient(180deg, transparent, rgba(59,130,246,0.03) 50%, transparent)' }}>
         <div className="max-w-[1200px] mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-16 items-start">
           <div>
             <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[2px] text-trademaster-blue bg-trademaster-blue/8 border border-trademaster-blue/15 px-4 py-1.5 rounded-full mb-4">
@@ -1271,7 +1271,7 @@ export default function Landing() {
              </div>
           </div>
           <div>
-            <div className="glass-card p-10 border border-trademaster-blue/20 shadow-[0_0_50px_rgba(52,222,0,0.05)] sticky top-32">
+            <div className="glass-card p-10 border border-trademaster-blue/20 shadow-[0_0_50px_rgba(59,130,246,0.05)] sticky top-32">
               <div className="text-center mb-8">
                 <div className="text-4xl font-black text-white">A Hora de Agir é Agora!</div>
               </div>
@@ -1307,7 +1307,7 @@ export default function Landing() {
               />
 
               <div className="mt-8 text-center pt-8 border-t border-white/10">
-                 <a href="https://pay.cakto.com.br/anasupy_808501" target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-2 bg-apex-trader-primary text-black font-black text-xl px-11 py-5 rounded-xl shadow-[0_0_50px_rgba(52,222,0,0.6)] hover:shadow-[0_0_80px_rgba(52,222,0,0.8)] transition-all scale-100 hover:scale-105 active:scale-95">
+                 <a href="https://pay.cakto.com.br/anasupy_808501" target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-2 bg-apex-trader-primary text-black font-black text-xl px-11 py-5 rounded-xl shadow-[0_0_50px_rgba(59,130,246,0.6)] hover:shadow-[0_0_80px_rgba(59,130,246,0.8)] transition-all scale-100 hover:scale-105 active:scale-95">
                    COMEÇAR AGORA
                    <ArrowRight size={22} className="ml-2 animate-pulse" />
                  </a>
@@ -1360,7 +1360,7 @@ export default function Landing() {
             <p className="text-slate-400 text-lg mb-3">
               Os Top 3 traders ficam em destaque, criando uma competição saudável e mostrando performance real.
             </p>
-            <div className="inline-block font-bold text-lg text-trademaster-blue bg-slate-900/70 border border-trademaster-blue/20 px-8 py-4 rounded-xl shadow-[0_0_20px_rgba(52,222,0,0.1)]">
+            <div className="inline-block font-bold text-lg text-trademaster-blue bg-slate-900/70 border border-trademaster-blue/20 px-8 py-4 rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.1)]">
               Transforme cada operação em uma oportunidade de subir no ranking!
             </div>
           </div>
@@ -1381,7 +1381,7 @@ export default function Landing() {
             {[
               { name: 'Discord', desc: 'Participe das aulas, análises e trocas em tempo real com a comunidade.', color: '#5865F2', btnText: 'Ver como funciona o Discord' },
               { name: 'WhatsApp', desc: 'Receba avisos, conteúdos e mantenha contato com a comunidade e os mentores.', color: '#25D366', btnText: 'Conhecer o grupo exclusivo' },
-              { name: 'Suporte', desc: 'Tire dúvidas e continue avançando com acompanhamento mais próximo.', color: '#34de00', btnText: 'Entender o suporte por dentro' },
+              { name: 'Suporte', desc: 'Tire dúvidas e continue avançando com acompanhamento mais próximo.', color: '#3b82f6', btnText: 'Entender o suporte por dentro' },
             ].map((c) => (
               <div key={c.name} className="glass-card p-8 text-center hover:-translate-y-1 transition-transform">
                 <div className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center" style={{ background: `${c.color}15` }}>

@@ -69,7 +69,7 @@ export default function Login() {
         <img
           src={BRANDING.loginLogoUrl}
           alt={BRANDING.logoAlt}
-          className="h-40 md:h-56 mb-8 object-contain drop-shadow-[0_0_35px_rgba(52,222,0,0.4)]"
+          className="h-40 md:h-56 mb-8 object-contain drop-shadow-[0_0_35px_rgba(59,130,246,0.4)]"
         />
 
         <div className="w-full">
@@ -82,7 +82,7 @@ export default function Login() {
                   <label className="block">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] ml-1">NOME COMPLETO</span>
                     <div className="mt-1 relative">
-                      <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#34de00' }} />
+                      <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#3b82f6' }} />
                       <input
                         type="text"
                         required
@@ -98,7 +98,7 @@ export default function Login() {
                 <label className="block">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] ml-1">E-MAIL</span>
                   <div className="mt-1 relative">
-                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#34de00' }} />
+                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#3b82f6' }} />
                     <input
                       type="email"
                       required
@@ -113,7 +113,7 @@ export default function Login() {
                 <label className="block">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] ml-1">SENHA</span>
                   <div className="mt-1 relative">
-                    <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#34de00' }} />
+                    <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#3b82f6' }} />
                     <input
                       type="password"
                       required
@@ -136,9 +136,9 @@ export default function Login() {
                   disabled={loading}
                   className="w-full font-black py-4 rounded-xl transition-all flex items-center justify-center gap-2 group mt-2 text-sm tracking-widest disabled:opacity-60"
                   style={{
-                    background: '#34de00',
+                    background: '#3b82f6',
                     color: '#000',
-                    boxShadow: '0 8px 32px rgba(52,222,0,0.25)',
+                    boxShadow: '0 8px 32px rgba(59,130,246,0.25)',
                   }}
                 >
                   {loading ? 'PROCESSANDO...' : isLogin ? 'ENTRAR NA PLATAFORMA' : 'CRIAR MINHA CONTA'}
@@ -150,7 +150,7 @@ export default function Login() {
                 <div className="text-center">
                   <button
                     onClick={() => { setIsLogin(!isLogin); setError(''); }}
-                    className="text-xs font-bold text-apex-trader-primary hover:text-[#2bc900] transition-colors"
+                    className="text-xs font-bold text-apex-trader-primary hover:text-[#2563eb] transition-colors"
                   >
                     {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Entre aqui'}
                   </button>

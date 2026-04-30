@@ -135,9 +135,9 @@ export default function Prova() {
                 style={{
                   width: `${resultado.percentual}%`,
                   background: resultado.aprovado
-                    ? 'linear-gradient(90deg, #34de00, #2bc900)'
+                    ? 'linear-gradient(90deg, #3b82f6, #2563eb)'
                     : 'linear-gradient(90deg, #ef4444, #dc2626)',
-                  boxShadow: resultado.aprovado ? '0 0 12px rgba(52,222,0,0.4)' : '0 0 12px rgba(239,68,68,0.4)',
+                  boxShadow: resultado.aprovado ? '0 0 12px rgba(59,130,246,0.4)' : '0 0 12px rgba(239,68,68,0.4)',
                 }}
               />
             </div>
@@ -292,9 +292,9 @@ export default function Prova() {
           onClick={handleSubmit}
           disabled={!todasRespondidas}
           className="px-8 py-3.5 rounded-xl font-bold text-black transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-trademaster-blue/20"
-          style={{ background: '#34de00' }}
-          onMouseEnter={e => { if (todasRespondidas) e.currentTarget.style.background = '#2bc900'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#34de00'; }}
+          style={{ background: '#3b82f6' }}
+          onMouseEnter={e => { if (todasRespondidas) e.currentTarget.style.background = '#2563eb'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#3b82f6'; }}
         >
           Finalizar Prova
         </button>

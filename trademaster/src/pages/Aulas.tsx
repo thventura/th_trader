@@ -445,9 +445,9 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
                     <button
                       onClick={() => handleToggleConcluida(selectedAula)}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-black text-sm font-bold transition-all"
-                      style={{ background: '#34de00', boxShadow: '0 2px 12px rgba(52,222,0,0.25)' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                      onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                      style={{ background: '#3b82f6', boxShadow: '0 2px 12px rgba(59,130,246,0.25)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
                     >
                       <CheckCircle size={16} /> Marcar como Concluída
                     </button>
@@ -486,9 +486,9 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
                       onClick={() => handlePostarComentario(selectedAula)}
                       disabled={!novoComentario.trim()}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-black text-sm font-bold transition-all disabled:opacity-40"
-                      style={{ background: '#34de00' }}
-                      onMouseEnter={e => { if (novoComentario.trim()) e.currentTarget.style.background = '#2bc900'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = '#34de00'; }}
+                      style={{ background: '#3b82f6' }}
+                      onMouseEnter={e => { if (novoComentario.trim()) e.currentTarget.style.background = '#2563eb'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#3b82f6'; }}
                     >
                       <Send size={14} /> Enviar Comentário
                     </button>
@@ -636,7 +636,7 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
 
         {/* Module edit inline form */}
         {editandoModulo && isAdmin && (
-          <div className="glass-card p-6 border border-apex-trader-primary/20" style={{ background: 'rgba(52,222,0,0.03)' }}>
+          <div className="glass-card p-6 border border-apex-trader-primary/20" style={{ background: 'rgba(59,130,246,0.03)' }}>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-bold text-apex-trader-primary">Editar Módulo</h4>
               <button onClick={() => setEditandoModulo(false)} className="text-slate-500 hover:text-white"><X size={18} /></button>
@@ -686,9 +686,9 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
                   }
                 }}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black transition-all"
-                style={{ background: '#34de00' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                style={{ background: '#3b82f6' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
               >
                 Salvar Módulo
               </button>
@@ -715,9 +715,9 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
               <button
                 onClick={() => { setShowAulaForm(true); setEditingAula(null); setAulaForm(emptyAulaForm); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-black text-xs font-bold transition-all"
-                style={{ background: '#34de00', boxShadow: '0 2px 12px rgba(52,222,0,0.3)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                style={{ background: '#3b82f6', boxShadow: '0 2px 12px rgba(59,130,246,0.3)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
               >
                 <Plus size={14} /> Nova Aula
               </button>
@@ -726,7 +726,7 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
 
           {/* Form add/edit */}
           {showAulaForm && isAdmin && (
-            <div className="p-5 border-b border-white/5" style={{ background: 'rgba(52,222,0,0.04)' }}>
+            <div className="p-5 border-b border-white/5" style={{ background: 'rgba(59,130,246,0.04)' }}>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-bold text-apex-trader-primary">{editingAula ? 'Editar Aula' : 'Nova Aula'}</h4>
                 <button onClick={() => { setShowAulaForm(false); setEditingAula(null); }} className="text-slate-500 hover:text-white">
@@ -794,9 +794,9 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
                 <button
                   onClick={handleSaveAula}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black transition-all"
-                  style={{ background: '#34de00' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                  style={{ background: '#3b82f6' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
                 >
                   {editingAula ? 'Salvar Alterações' : 'Adicionar Aula'}
                 </button>
@@ -940,7 +940,7 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
             <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
               <div
                 className="h-full rounded-full transition-all duration-1000"
-                style={{ width: `${percentualGeral}%`, background: 'linear-gradient(90deg, #34de00, #2bc900)', boxShadow: '0 0 16px rgba(52,222,0,0.4)' }}
+                style={{ width: `${percentualGeral}%`, background: 'linear-gradient(90deg, #3b82f6, #2563eb)', boxShadow: '0 0 16px rgba(59,130,246,0.4)' }}
               />
             </div>
           </div>
@@ -955,9 +955,9 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
             <button
               onClick={() => setShowAddModulo(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-black text-xs font-bold transition-all"
-              style={{ background: '#34de00', boxShadow: '0 2px 12px rgba(52,222,0,0.3)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+              style={{ background: '#3b82f6', boxShadow: '0 2px 12px rgba(59,130,246,0.3)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
             >
               <Plus size={14} /> Adicionar Módulo
             </button>
@@ -965,7 +965,7 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
         </div>
 
         {showAddModulo && isAdmin && (
-          <div className="glass-card p-6 mb-8 border border-apex-trader-primary/20" style={{ background: 'rgba(52,222,0,0.03)' }}>
+          <div className="glass-card p-6 mb-8 border border-apex-trader-primary/20" style={{ background: 'rgba(59,130,246,0.03)' }}>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-bold text-apex-trader-primary uppercase tracking-widest">Novo Módulo</h4>
               <button onClick={() => setShowAddModulo(false)} className="text-slate-500 hover:text-white"><X size={18} /></button>
@@ -1009,9 +1009,9 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
               <button
                 onClick={handleCreateModulo}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black transition-all"
-                style={{ background: '#34de00' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                style={{ background: '#3b82f6' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
               >
                 Criar Módulo
               </button>
@@ -1104,7 +1104,7 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
                       <div className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg",
                         modulo.em_breve && !isAdmin ? "bg-slate-600 text-slate-400" : bloqueado ? "bg-amber-500/80 text-black" : "text-black"
-                      )} style={!modulo.em_breve && !bloqueado ? { background: '#34de00' } : undefined}>
+                      )} style={!modulo.em_breve && !bloqueado ? { background: '#3b82f6' } : undefined}>
                         {modulo.em_breve && !isAdmin ? <Clock size={16} /> : bloqueado ? <Lock size={16} /> : <Play size={16} fill="currentColor" />}
                       </div>
                     </div>

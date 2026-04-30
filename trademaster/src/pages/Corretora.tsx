@@ -1043,7 +1043,7 @@ function FormularioConexao({
               target="_blank"
               rel="noopener noreferrer"
               className="w-full py-4 text-slate-950 font-black rounded-2xl hover:brightness-110 transition-all shadow-lg shadow-apex-trader-primary/20 text-center flex items-center justify-center gap-2"
-              style={{ background: '#34de00' }}
+              style={{ background: '#3b82f6' }}
             >
               Criar Conta na VornaBroker
               <ExternalLink size={18} />
@@ -1181,8 +1181,8 @@ function SecaoApexTrader() {
           100% { opacity: 0; transform: translateY(-130px) scale(0.85); filter: blur(3px); }
         }
         @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 8px rgba(52,222,0,0.15); }
-          50% { box-shadow: 0 0 20px rgba(52,222,0,0.35); }
+          0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.15); }
+          50% { box-shadow: 0 0 20px rgba(59,130,246,0.35); }
         }
       `}</style>
 
@@ -1190,7 +1190,7 @@ function SecaoApexTrader() {
 
       <Spotlight
         className="-top-40 left-0 md:left-60 md:-top-20 z-10"
-        fill="#34de00"
+        fill="#3b82f6"
       />
 
       <div className="flex flex-col md:flex-row h-full">
@@ -1231,7 +1231,7 @@ function SecaoApexTrader() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl backdrop-blur-md whitespace-nowrap"
               style={{
                 background: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(52, 222, 0, 0.25)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
                 animation: 'pulseGlow 2s ease-in-out infinite',
               }}
             >
@@ -1480,7 +1480,7 @@ function SecaoQuadrantes({
                   className="relative overflow-hidden rounded-xl border transition-all duration-300"
                   style={{
                     background: ehAtual
-                      ? 'rgba(52,222,0,0.06)'
+                      ? 'rgba(59,130,246,0.06)'
                       : win
                         ? 'rgba(16,185,129,0.06)'
                         : loss
@@ -1489,7 +1489,7 @@ function SecaoQuadrantes({
                             ? 'rgba(245,158,11,0.06)'
                             : 'rgba(255,255,255,0.02)',
                     borderColor: ehAtual
-                      ? 'rgba(52,222,0,0.4)'
+                      ? 'rgba(59,130,246,0.4)'
                       : win
                         ? 'rgba(16,185,129,0.3)'
                         : loss
@@ -1498,7 +1498,7 @@ function SecaoQuadrantes({
                             ? 'rgba(245,158,11,0.3)'
                             : 'rgba(255,255,255,0.06)',
                     boxShadow: ehAtual
-                      ? '0 0 16px rgba(52,222,0,0.12), inset 0 0 12px rgba(52,222,0,0.04)'
+                      ? '0 0 16px rgba(59,130,246,0.12), inset 0 0 12px rgba(59,130,246,0.04)'
                       : win
                         ? '0 0 8px rgba(16,185,129,0.08)'
                         : loss
@@ -1509,7 +1509,7 @@ function SecaoQuadrantes({
                   <div className="px-2 pt-2.5 pb-2 flex flex-col items-center gap-1.5">
                     {/* Label */}
                     <p className="text-[9px] font-bold uppercase tracking-widest" style={{
-                      color: ehAtual ? '#34de00' : win ? '#10b981' : loss ? '#ef4444' : pendente ? '#f59e0b' : '#475569'
+                      color: ehAtual ? '#3b82f6' : win ? '#10b981' : loss ? '#ef4444' : pendente ? '#f59e0b' : '#475569'
                     }}>Q{q}</p>
 
                     {/* Ícone de status */}
@@ -1532,7 +1532,7 @@ function SecaoQuadrantes({
                         <div className="relative">
                           <div
                             className="w-2 h-2 rounded-full animate-pulse"
-                            style={{ background: '#34de00', boxShadow: '0 0 8px #34de00' }}
+                            style={{ background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }}
                           />
                         </div>
                       ) : (
@@ -1549,7 +1549,7 @@ function SecaoQuadrantes({
                     className="absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-500"
                     style={{
                       background: ehAtual
-                        ? 'linear-gradient(90deg, transparent, #34de00, transparent)'
+                        ? 'linear-gradient(90deg, transparent, #3b82f6, transparent)'
                         : win ? '#10b981' : loss ? '#ef4444' : 'transparent',
                       opacity: ehAtual || win || loss ? 1 : 0
                     }}
@@ -1791,8 +1791,8 @@ function SecaoQuadrantes5min({
                   key={q}
                   className="relative overflow-hidden rounded-xl border transition-all"
                   style={{
-                    background: ehAtual ? 'rgba(52,222,0,0.06)' : win ? 'rgba(16,185,129,0.06)' : loss ? 'rgba(239,68,68,0.06)' : pendente ? 'rgba(245,158,11,0.06)' : 'rgba(255,255,255,0.02)',
-                    borderColor: ehAtual ? 'rgba(52,222,0,0.4)' : win ? 'rgba(16,185,129,0.3)' : loss ? 'rgba(239,68,68,0.3)' : pendente ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.06)',
+                    background: ehAtual ? 'rgba(59,130,246,0.06)' : win ? 'rgba(16,185,129,0.06)' : loss ? 'rgba(239,68,68,0.06)' : pendente ? 'rgba(245,158,11,0.06)' : 'rgba(255,255,255,0.02)',
+                    borderColor: ehAtual ? 'rgba(59,130,246,0.4)' : win ? 'rgba(16,185,129,0.3)' : loss ? 'rgba(239,68,68,0.3)' : pendente ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.06)',
                   }}
                 >
                   <div className="px-1 pt-2 pb-1.5 flex flex-col items-center gap-1">

@@ -302,7 +302,7 @@ export default function Perfil() {
                   <button
                     onClick={handleAtivarNotificacoes}
                     disabled={notifLoading}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-apex-trader-primary hover:bg-[#2bc900] text-black font-semibold text-sm transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-apex-trader-primary hover:bg-[#2563eb] text-black font-semibold text-sm transition-colors disabled:opacity-50"
                   >
                     <Bell size={15} />
                     {notifLoading ? 'Aguarde...' : 'Ativar'}
@@ -321,7 +321,7 @@ export default function Perfil() {
             )}
             <button
               onClick={handleSave}
-              className="bg-apex-trader-primary hover:bg-[#2bc900] text-black font-bold px-10 py-4 rounded-xl shadow-lg shadow-apex-trader-primary/20 transition-all"
+              className="bg-apex-trader-primary hover:bg-[#2563eb] text-black font-bold px-10 py-4 rounded-xl shadow-lg shadow-apex-trader-primary/20 transition-all"
             >
               Salvar Alterações
             </button>

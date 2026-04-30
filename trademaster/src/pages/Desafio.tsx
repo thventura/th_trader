@@ -88,7 +88,7 @@ export default function Desafio() {
         <div className="absolute inset-0 z-0">
           <AnoAI className="opacity-25" />
         </div>
-        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_20%_80%_at_50%_-20%,rgba(52,222,0,0.15),rgba(0,0,0,0))]" />
+        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_20%_80%_at_50%_-20%,rgba(59,130,246,0.15),rgba(0,0,0,0))]" />
 
         <RetroGrid angle={65} cellSize={50} opacity={0.35} lightLineColor="#1a3d1a" darkLineColor="#0d2e0d" />
 
@@ -122,7 +122,7 @@ export default function Desafio() {
             {/* CTA com borda animada */}
             <div className="flex items-center justify-center gap-x-3 pt-2">
               <span className="relative inline-block overflow-hidden rounded-full p-[1.5px]">
-                <span className="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#34de00_0%,#0a4a00_50%,#34de00_100%)]" />
+                <span className="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#3b82f6_0%,#1e3a8a_50%,#3b82f6_100%)]" />
                 <div className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-slate-950 text-sm font-bold backdrop-blur-3xl">
                   <a
                     href="#ranking"
@@ -309,7 +309,7 @@ export default function Desafio() {
                           <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                             style={{
-                              background: p.id === userId ? '#34de00' : info ? `${info.cor}20` : 'rgba(255,255,255,0.05)',
+                              background: p.id === userId ? '#3b82f6' : info ? `${info.cor}20` : 'rgba(255,255,255,0.05)',
                               color: p.id === userId ? '#000' : info ? info.cor : '#94a3b8',
                             }}
                           >
@@ -362,7 +362,7 @@ export default function Desafio() {
 
       {/* ── Fórmula de Pontuação — Futurista ── */}
       <div className="relative rounded-3xl overflow-hidden">
-        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_40%_60%_at_50%_0%,rgba(52,222,0,0.08),rgba(0,0,0,0))]" />
+        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_40%_60%_at_50%_0%,rgba(59,130,246,0.08),rgba(0,0,0,0))]" />
         <RetroGrid angle={65} cellSize={40} opacity={0.15} lightLineColor="#0d2e0d" darkLineColor="#0a1f0a" />
 
         <div className="relative z-10 p-8 md:p-12 space-y-8">
@@ -383,7 +383,7 @@ export default function Desafio() {
           {/* Fórmula com borda animada */}
           <div className="flex justify-center">
             <span className="relative inline-block overflow-hidden rounded-2xl p-[1.5px]">
-              <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#34de00_0%,#0a4a00_50%,#34de00_100%)]" />
+              <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#3b82f6_0%,#1e3a8a_50%,#3b82f6_100%)]" />
               <div className="relative rounded-2xl bg-slate-950 px-8 py-5 font-mono text-sm md:text-base text-center">
                 <span className="text-trademaster-blue font-black">Pontuação</span>
                 <span className="text-slate-500"> = </span>
@@ -433,7 +433,7 @@ export default function Desafio() {
 
       {/* ── Como Participar — Futurista ── */}
       <div className="relative rounded-3xl overflow-hidden">
-        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_30%_50%_at_80%_20%,rgba(52,222,0,0.06),rgba(0,0,0,0))]" />
+        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_30%_50%_at_80%_20%,rgba(59,130,246,0.06),rgba(0,0,0,0))]" />
         <RetroGrid angle={65} cellSize={45} opacity={0.1} lightLineColor="#0d2e0d" darkLineColor="#091a09" />
 
         <div className="relative z-10 p-8 md:p-12 space-y-8">
@@ -460,21 +460,21 @@ export default function Desafio() {
                 key={i}
                 className="group relative flex gap-5 p-5 rounded-2xl overflow-hidden transition-all hover:scale-[1.01]"
                 style={{
-                  background: 'rgba(52,222,0,0.03)',
-                  border: '1px solid rgba(52,222,0,0.1)',
+                  background: 'rgba(59,130,246,0.03)',
+                  border: '1px solid rgba(59,130,246,0.1)',
                 }}
               >
                 {/* Glow on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_0%_50%,rgba(52,222,0,0.08),transparent_70%)]" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_0%_50%,rgba(59,130,246,0.08),transparent_70%)]" />
                 {/* Número grande */}
                 <div className="relative z-10 shrink-0">
                   <div
                     className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-black"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(52,222,0,0.15), rgba(52,222,0,0.05))',
-                      border: '1px solid rgba(52,222,0,0.25)',
-                      color: '#34de00',
-                      boxShadow: '0 0 20px rgba(52,222,0,0.1)',
+                      background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))',
+                      border: '1px solid rgba(59,130,246,0.25)',
+                      color: '#3b82f6',
+                      boxShadow: '0 0 20px rgba(59,130,246,0.1)',
                     }}
                   >
                     {step.num}
@@ -492,7 +492,7 @@ export default function Desafio() {
 
       {/* ── Regras do Desafio — Futurista ── */}
       <div className="relative rounded-3xl overflow-hidden">
-        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_30%_50%_at_20%_80%,rgba(52,222,0,0.06),rgba(0,0,0,0))]" />
+        <div className="absolute top-0 z-0 h-full w-full bg-[radial-gradient(ellipse_30%_50%_at_20%_80%,rgba(59,130,246,0.06),rgba(0,0,0,0))]" />
         <RetroGrid angle={65} cellSize={55} opacity={0.08} lightLineColor="#0d2e0d" darkLineColor="#091a09" />
 
         <div className="relative z-10 p-8 md:p-12 space-y-8">
@@ -528,10 +528,10 @@ export default function Desafio() {
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 transition-all group-hover:scale-110"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(52,222,0,0.15), rgba(52,222,0,0.05))',
-                    border: '1px solid rgba(52,222,0,0.2)',
-                    color: '#34de00',
-                    boxShadow: '0 0 12px rgba(52,222,0,0.08)',
+                    background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))',
+                    border: '1px solid rgba(59,130,246,0.2)',
+                    color: '#3b82f6',
+                    boxShadow: '0 0 12px rgba(59,130,246,0.08)',
                   }}
                 >
                   {i + 1}

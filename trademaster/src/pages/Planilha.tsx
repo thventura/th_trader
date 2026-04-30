@@ -53,9 +53,9 @@ export default function Planilha() {
       <div className="relative z-10 flex flex-col items-center text-center px-6 py-12 max-w-3xl mx-auto space-y-8">
         {/* Logo */}
         <img
-          src="https://i.imgur.com/tqpshJj.png"
+          src={BRANDING.logoUrl}
           alt={BRANDING.logoAlt}
-          className="h-28 md:h-36 object-contain drop-shadow-[0_0_30px_rgba(52,222,0,0.3)]"
+          className="h-28 md:h-36 object-contain drop-shadow-[0_0_30px_rgba(59,130,246,0.3)]"
           referrerPolicy="no-referrer"
         />
 

@@ -198,8 +198,8 @@ export default function Planilha4x2({ onVoltar }: Props) {
               <AreaChart data={dadosGrafico} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradBanca4x2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#34de00" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#34de00" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -210,7 +210,7 @@ export default function Planilha4x2({ onVoltar }: Props) {
                   labelStyle={{ color: '#94a3b8' }}
                   formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Banca']}
                 />
-                <Area type="monotone" dataKey="banca" stroke="#34de00" strokeWidth={2.5} fill="url(#gradBanca4x2)" dot={{ r: 4, fill: '#34de00', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#34de00', stroke: '#fff', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="banca" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradBanca4x2)" dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
             <p className="text-center text-[10px] text-slate-500 mt-2 flex items-center justify-center gap-1.5">

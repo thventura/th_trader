@@ -23,9 +23,9 @@ import confetti from 'canvas-confetti';
 import { Button } from '../components/ui/button';
 
 const COLORS = {
-  primary: '#34de00',
-  primaryDark: '#2bc900',
-  secondary: '#7fff00',
+  primary: '#3b82f6',
+  primaryDark: '#2563eb',
+  secondary: '#93c5fd',
   bg: '#000000',
   card: '#0f172a',
 };
@@ -117,7 +117,7 @@ const Quiz = () => {
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
-              className="h-full bg-primary shadow-[0_0_15px_rgba(52,222,0,0.5)]"
+              className="h-full bg-primary shadow-[0_0_15px_rgba(59,130,246,0.5)]"
             />
           </div>
           <div className="flex justify-between mt-2">
@@ -132,13 +132,13 @@ const Quiz = () => {
         {step === 0 && (
           <QuizContainer key="step0">
             <div className="text-center mb-12 mt-4 md:mt-10">
-              <div className="inline-flex items-center gap-2 text-[10px] font-black text-primary bg-primary/5 border border-primary/60 px-8 py-2.5 rounded-full mb-8 uppercase tracking-[3px] shadow-[0_0_20px_rgba(52,222,0,0.15)]">
+              <div className="inline-flex items-center gap-2 text-[10px] font-black text-primary bg-primary/5 border border-primary/60 px-8 py-2.5 rounded-full mb-8 uppercase tracking-[3px] shadow-[0_0_20px_rgba(59,130,246,0.15)]">
                 é exclusivo para traders
               </div>
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-8 tracking-tighter leading-[1.1] uppercase">
                 <span className="text-white">Aprenda como</span> <br />
-                <span style={{ color: '#34de00' }}>fazer R$50 por</span> <br />
-                <span style={{ color: '#34de00' }}>dia <span style={{ fontStyle: 'italic' }}>operando.</span></span>
+                <span style={{ color: '#3b82f6' }}>fazer R$50 por</span> <br />
+                <span style={{ color: '#3b82f6' }}>dia <span style={{ fontStyle: 'italic' }}>operando.</span></span>
               </h1>
               <p className="text-lg md:text-xl text-white max-w-[600px] mx-auto leading-relaxed mb-12 font-medium">
                 Você vai perceber que <span className="font-black">NÃO É IMPOSSÍVEL</span> conquistar seus objetivos, desde que faça as escolhas certas e tome as ações corretas!
@@ -146,7 +146,7 @@ const Quiz = () => {
             </div>
 
             {/* VSL Placeholder */}
-            <div className="relative aspect-video w-full rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(52,222,0,0.15)] overflow-hidden mb-10">
+            <div className="relative aspect-video w-full rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(59,130,246,0.15)] overflow-hidden mb-10">
               <CustomVideoPlayer videoId="C2qoRxiOkhs" />
             </div>
 
@@ -313,7 +313,7 @@ const Quiz = () => {
               {/* LEFT COLUMN: BONUSES */}
               <div className="space-y-10">
                 <div>
-                  <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[2px] text-primary bg-primary/8 border border-primary/15 px-4 py-1.5 rounded-full mb-6 shadow-[0_0_15px_rgba(52,222,0,0.1)]">
+                  <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[2px] text-primary bg-primary/8 border border-primary/15 px-4 py-1.5 rounded-full mb-6 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
                     Resumo da Oferta
                   </div>
                   <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-[1] mb-8 uppercase text-white">
@@ -340,7 +340,7 @@ const Quiz = () => {
                         transition={{ delay: idx * 0.1 }}
                         className="flex items-center gap-4 text-lg md:text-xl font-bold text-slate-100 group"
                       >
-                        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-[0_0_10px_rgba(52,222,0,0.2)]">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-[0_0_10px_rgba(59,130,246,0.2)]">
                            <Check size={18} className="text-primary stroke-[3px]" />
                         </div>
                         {item}
@@ -348,7 +348,7 @@ const Quiz = () => {
                     ))}
                   </ul>
 
-                  <div className="border border-primary/30 p-8 rounded-2xl bg-primary/5 backdrop-blur-sm relative overflow-hidden group shadow-[0_0_30px_rgba(52,222,0,0.05)]">
+                  <div className="border border-primary/30 p-8 rounded-2xl bg-primary/5 backdrop-blur-sm relative overflow-hidden group shadow-[0_0_30px_rgba(59,130,246,0.05)]">
                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <p className="text-2xl md:text-3xl font-black text-white italic relative z-10">Tudo em uma única assinatura.</p>
                   </div>
@@ -357,7 +357,7 @@ const Quiz = () => {
 
               {/* RIGHT COLUMN: PRICING CARD */}
               <div className="lg:sticky lg:top-10">
-                <div className="border border-white/10 p-8 md:p-12 rounded-[2.5rem] bg-[#0A0A0A] shadow-[0_0_80px_rgba(52,222,0,0.05)] relative overflow-hidden">
+                <div className="border border-white/10 p-8 md:p-12 rounded-[2.5rem] bg-[#0A0A0A] shadow-[0_0_80px_rgba(59,130,246,0.05)] relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
                   
                   <div className="text-center mb-10">
@@ -368,7 +368,7 @@ const Quiz = () => {
                   </div>
 
                   <div className="bg-[#050505] border border-white/5 rounded-3xl p-8 relative mb-10 group hover:border-primary/20 transition-all">
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-black font-black text-[10px] px-6 py-2 rounded-full uppercase tracking-[2px] shadow-[0_0_25px_rgba(52,222,0,0.6)] z-20">
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-black font-black text-[10px] px-6 py-2 rounded-full uppercase tracking-[2px] shadow-[0_0_25px_rgba(59,130,246,0.6)] z-20">
                       MELHOR CUSTO-BENEFÍCIO
                     </div>
 
@@ -400,7 +400,7 @@ const Quiz = () => {
                       href="https://pay.cakto.com.br/anasupy_808501" 
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full inline-flex items-center justify-center gap-3 bg-primary text-black font-black text-xl py-6 rounded-2xl hover:shadow-[0_0_50px_rgba(52,222,0,0.6)] transition-all scale-100 hover:scale-[1.03] active:scale-[0.98]"
+                      className="w-full inline-flex items-center justify-center gap-3 bg-primary text-black font-black text-xl py-6 rounded-2xl hover:shadow-[0_0_50px_rgba(59,130,246,0.6)] transition-all scale-100 hover:scale-[1.03] active:scale-[0.98]"
                     >
                       GARANTIR MINHA VAGA <ArrowRight size={22} className="animate-pulse" />
                     </a>

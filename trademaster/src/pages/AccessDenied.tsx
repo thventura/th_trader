@@ -62,7 +62,7 @@ export default function AccessDenied() {
         <div className="space-y-4">
           <button
             onClick={handleRenew}
-            className="w-full flex items-center justify-center gap-3 bg-apex-trader-primary text-black font-black py-5 rounded-2xl hover:shadow-[0_0_40px_rgba(52,222,0,0.4)] transition-all group uppercase italic text-lg shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+            className="w-full flex items-center justify-center gap-3 bg-apex-trader-primary text-black font-black py-5 rounded-2xl hover:shadow-[0_0_40px_rgba(59,130,246,0.4)] transition-all group uppercase italic text-lg shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
           >
             <CreditCard size={20} />
             Renovar Minha Assinatura

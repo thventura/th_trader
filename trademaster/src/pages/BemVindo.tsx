@@ -11,9 +11,9 @@ export default function BemVindo() {
       {/* ===== Background animado (mesmo da Landing) ===== */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="stars absolute inset-0" />
-        <ShootingStars starColor="#34de00" trailColor="#7fff00" minSpeed={15} maxSpeed={35} minDelay={1000} maxDelay={3000} />
-        <ShootingStars starColor="#34de00" trailColor="#2bc900" minSpeed={10} maxSpeed={25} minDelay={2000} maxDelay={4500} />
-        <ShootingStars starColor="#7fff00" trailColor="#34de00" minSpeed={20} maxSpeed={40} minDelay={1500} maxDelay={3500} />
+        <ShootingStars starColor="#3b82f6" trailColor="#93c5fd" minSpeed={15} maxSpeed={35} minDelay={1000} maxDelay={3000} />
+        <ShootingStars starColor="#3b82f6" trailColor="#2563eb" minSpeed={10} maxSpeed={25} minDelay={2000} maxDelay={4500} />
+        <ShootingStars starColor="#93c5fd" trailColor="#3b82f6" minSpeed={20} maxSpeed={40} minDelay={1500} maxDelay={3500} />
       </div>
 
       {/* Grid pattern */}
@@ -21,7 +21,7 @@ export default function BemVindo() {
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: 'linear-gradient(rgba(52,222,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(52,222,0,0.04) 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px)',
             backgroundSize: '60px 60px',
             maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
             WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
@@ -32,7 +32,7 @@ export default function BemVindo() {
       {/* Glow radial */}
       <div
         className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[800px] h-[600px] z-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(52,222,0,0.12) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.12) 0%, transparent 70%)' }}
       />
 
       {/* ===== Conteúdo ===== */}
@@ -61,7 +61,7 @@ export default function BemVindo() {
             className="order-2 md:order-1 w-full md:w-1/2 text-center md:text-left px-6 md:px-12 lg:px-16 py-8 md:py-0"
           >
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4">
-              <span className="bg-gradient-to-r from-apex-trader-primary to-[#7fff00] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-apex-trader-primary to-[#93c5fd] bg-clip-text text-transparent">
                 Seja Bem-Vindo
               </span>
               <br />
@@ -103,7 +103,7 @@ export default function BemVindo() {
             </p>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden border border-apex-trader-primary/20 shadow-[0_0_40px_rgba(52,222,0,0.08)]">
+          <div className="relative rounded-2xl overflow-hidden border border-apex-trader-primary/20 shadow-[0_0_40px_rgba(59,130,246,0.08)]">
             <div className="aspect-video">
               <iframe
                 className="w-full h-full"

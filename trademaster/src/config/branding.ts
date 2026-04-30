@@ -15,9 +15,9 @@ export const BRANDING = {
   primaryColor: '#3b82f6',
 
   // ── Logos (URLs públicas) ────────────────────────────────────────────────────
-  logoUrl: 'https://i.imgur.com/s8rY6qO.png',
+  logoUrl: 'https://i.imgur.com/bg6Lqmo.png',
   logoAlt: 'Virtus Trader',
-  loginLogoUrl: 'https://i.imgur.com/s8rY6qO.png',
+  loginLogoUrl: 'https://i.imgur.com/bg6Lqmo.png',
   loginBgMobileUrl: 'https://i.imgur.com/Ov80XMJ.png',
   loginBgDesktopUrl: 'https://i.imgur.com/wXgjFrV.png',
 

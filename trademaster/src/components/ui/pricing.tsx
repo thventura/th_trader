@@ -140,7 +140,7 @@ export function PricingCard({
 				<BorderTrail
 					style={{
 						boxShadow:
-							'0px 0px 60px 10px rgba(52, 222, 0, 0.5)',
+							'0px 0px 60px 10px rgba(59, 130, 246, 0.5)',
 					}}
 					size={120}
 					className="bg-apex-trader-primary"
@@ -154,7 +154,7 @@ export function PricingCard({
 			>
 				<div className="absolute top-4 right-4 z-10 flex items-center gap-2">
 					{plan.highlighted && (
-						<p className="bg-apex-trader-primary text-black flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(52,222,0,0.3)]">
+						<p className="bg-apex-trader-primary text-black flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(59,130,246,0.3)]">
 							<StarIcon className="h-3 w-3 fill-current" />
 							Popular
 						</p>
@@ -218,7 +218,7 @@ export function PricingCard({
 					className={cn(
 						"w-full py-7 rounded-2xl font-black text-lg uppercase italic tracking-tighter transition-all",
 						plan.highlighted 
-							? "bg-apex-trader-primary text-black hover:shadow-[0_0_30px_rgba(52,222,0,0.4)]" 
+							? "bg-apex-trader-primary text-black hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]" 
 							: "bg-white/5 text-white hover:bg-white/10 border border-white/10"
 					)}
 					asChild

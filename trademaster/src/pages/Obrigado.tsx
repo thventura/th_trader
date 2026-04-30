@@ -14,8 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 
 const COLORS = {
-  primary: '#34de00',
-  secondary: '#7fff00',
+  primary: '#3b82f6',
+  secondary: '#93c5fd',
   bg: '#020617',
 };
 
@@ -54,7 +54,7 @@ export default function Obrigado() {
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
         <div className="absolute inset-0 opacity-[0.03]" 
-             style={{ backgroundImage: 'radial-gradient(rgba(52, 222, 0, 0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+             style={{ backgroundImage: 'radial-gradient(rgba(59, 130, 246, 0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
       </div>
 
       <div className="max-w-[800px] mx-auto w-full relative z-10 text-center">
@@ -63,7 +63,7 @@ export default function Obrigado() {
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
-          className="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mx-auto mb-10 shadow-[0_0_50px_rgba(52,222,0,0.3)]"
+          className="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mx-auto mb-10 shadow-[0_0_50px_rgba(59,130,246,0.3)]"
         >
           <CheckCircle2 size={48} className="text-primary" />
         </motion.div>
@@ -138,7 +138,7 @@ export default function Obrigado() {
           <button 
             onClick={() => navigate('/login')}
             style={{ backgroundColor: COLORS.primary }}
-            className="group flex items-center justify-center gap-4 p-6 rounded-3xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(52,222,0,0.5)] hover:shadow-[0_0_60px_rgba(52,222,0,0.7)]"
+            className="group flex items-center justify-center gap-4 p-6 rounded-3xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(59,130,246,0.5)] hover:shadow-[0_0_60px_rgba(59,130,246,0.7)]"
           >
             <div className="w-12 h-12 rounded-2xl bg-black/20 flex items-center justify-center group-hover:scale-110 transition-transform">
               <LogIn size={24} className="text-black" />

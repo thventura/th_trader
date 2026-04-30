@@ -19,7 +19,7 @@ function SliderField({ label, value, onChange, lowLabel = 'BAIXO', highLabel = '
   label: string; value: number; onChange: (v: number) => void; lowLabel?: string; highLabel?: string;
 }) {
   const pct = ((value - 1) / 4) * 100;
-  const color = pct <= 30 ? '#ef4444' : pct <= 60 ? '#f59e0b' : '#34de00';
+  const color = pct <= 30 ? '#ef4444' : pct <= 60 ? '#f59e0b' : '#3b82f6';
   return (
     <label className="block">
       <div className="flex justify-between items-center mb-2">
@@ -228,7 +228,7 @@ export default function Mindset() {
 
         <div className="w-full md:w-1/2 text-center md:text-left">
           <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4">
-            <span className="bg-gradient-to-r from-apex-trader-primary to-[#7fff00] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-apex-trader-primary to-[#93c5fd] bg-clip-text text-transparent">
               Check-in de Mindset
             </span>
           </h2>
@@ -336,7 +336,7 @@ export default function Mindset() {
           <button
             type="submit"
             disabled={isAnalyzing}
-            className="w-full bg-apex-trader-primary hover:bg-[#2bc900] disabled:opacity-50 text-black font-bold py-4 rounded-xl shadow-lg shadow-apex-trader-primary/20 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-apex-trader-primary hover:bg-[#2563eb] disabled:opacity-50 text-black font-bold py-4 rounded-xl shadow-lg shadow-apex-trader-primary/20 transition-all flex items-center justify-center gap-2"
           >
             {isAnalyzing ? (
               <>
@@ -407,7 +407,7 @@ export default function Mindset() {
                     className="h-full rounded-full transition-all duration-700"
                     style={{
                       width: `${(item.val / 5) * 100}%`,
-                      background: item.val >= 4 ? '#34de00' : item.val >= 3 ? '#f59e0b' : '#ef4444',
+                      background: item.val >= 4 ? '#3b82f6' : item.val >= 3 ? '#f59e0b' : '#ef4444',
                     }}
                   />
                 </div>

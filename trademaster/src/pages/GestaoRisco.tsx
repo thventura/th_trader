@@ -334,7 +334,7 @@ export default function GestaoRisco() {
 
           <button
             onClick={iniciar}
-            className="w-full bg-trademaster-blue hover:bg-[#2bc900] text-black font-black py-4 rounded-xl shadow-lg shadow-trademaster-blue/20 transition-all text-lg"
+            className="w-full bg-trademaster-blue hover:bg-[#2563eb] text-black font-black py-4 rounded-xl shadow-lg shadow-trademaster-blue/20 transition-all text-lg"
           >
             Iniciar Gestão
           </button>
@@ -464,7 +464,7 @@ export default function GestaoRisco() {
 
           {/* Próxima entrada */}
           <div className="glass-card p-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: '#34de00' }} />
+            <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: '#3b82f6' }} />
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Próxima Entrada</p>
             <p className="text-4xl font-black text-white mb-1">{formatCurrency(proximaEntrada)}</p>
             {proximoSoros > 0 && (
@@ -547,10 +547,10 @@ export default function GestaoRisco() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => registrar('vitoria')}
-                    className="flex items-center justify-center gap-2 py-5 rounded-xl font-black text-base text-black transition-all shadow-lg shadow-[#34de00]/20"
-                    style={{ background: '#34de00' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#2bc900')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#34de00')}
+                    className="flex items-center justify-center gap-2 py-5 rounded-xl font-black text-base text-black transition-all shadow-lg shadow-[#3b82f6]/20"
+                    style={{ background: '#3b82f6' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#2563eb')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#3b82f6')}
                   >
                     <CheckCircle2 size={22} />
                     WIN
@@ -579,8 +579,8 @@ export default function GestaoRisco() {
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="bankGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#34de00" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#34de00" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
@@ -590,7 +590,7 @@ export default function GestaoRisco() {
                       contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px' }}
                       formatter={(v: any) => [formatCurrency(v), 'Banca']}
                     />
-                    <Area type="monotone" dataKey="value" stroke="#34de00" strokeWidth={3} fillOpacity={1} fill="url(#bankGrad)" />
+                    <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#bankGrad)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

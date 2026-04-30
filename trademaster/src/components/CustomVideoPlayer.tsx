@@ -114,7 +114,7 @@ export function CustomVideoPlayer({ videoId }: CustomVideoPlayerProps) {
       >
         {!isPlaying && (
           <div className="text-center group-hover:scale-110 transition-all duration-500 z-50">
-            <div className="w-24 h-24 md:w-32 md:h-32 bg-apex-trader-primary rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(52,222,0,0.6)] mb-6 mx-auto border-4 border-white/20">
+            <div className="w-24 h-24 md:w-32 md:h-32 bg-apex-trader-primary rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.6)] mb-6 mx-auto border-4 border-white/20">
               <Play size={48} className="text-black ml-1.5" fill="currentColor" />
             </div>
             {!hasStarted && (
@@ -136,7 +136,7 @@ export function CustomVideoPlayer({ videoId }: CustomVideoPlayerProps) {
         {/* Fake Progress Bar - Variable Speed */}
         <div className="absolute bottom-0 left-0 right-0 h-2 bg-white/5 overflow-hidden z-50">
           <div 
-            className="h-full bg-apex-trader-primary shadow-[0_0_15px_rgba(52,222,0,0.8)] transition-all duration-300 ease-linear" 
+            className="h-full bg-apex-trader-primary shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-all duration-300 ease-linear" 
             style={{ width: `${progress}%` }} 
           />
         </div>
