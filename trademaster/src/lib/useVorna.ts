@@ -524,8 +524,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[FluxoVelas] >>> GATILHO TICK AOS ${segundos}s! <<<`);
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = automacao.perda_acumulada >= (config.valor_stop || Infinity);
-      const atingiuLimite = !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) {
         console.warn(`[FluxoVelas] 🛑 Automação interrompida: Meta=${atingiuMeta}, Stop=${atingiuStop}`);
@@ -542,7 +542,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
-        banca_atual: config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
+        banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -605,8 +605,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[LogicaDoPreco] >>> PADRÃO DETECTADO às ${agora.toLocaleTimeString()}! <<<`);
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = automacao.perda_acumulada >= (config.valor_stop || Infinity);
-      const atingiuLimite = !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
 
@@ -620,7 +620,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
-        banca_atual: config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
+        banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -706,8 +706,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       }
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = automacao.perda_acumulada >= (config.valor_stop || Infinity);
-      const atingiuLimite = !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
 
@@ -721,7 +721,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
-        banca_atual: config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
+        banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -1301,7 +1301,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             payout: automacao.config.payout,
             ciclo_martingale: cicloMartingaleRef.current,
             max_martingale: automacao.config.max_martingale,
-            banca_atual: automacao.config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
+            banca_atual: automacao.config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
           });
 
           setCicloMartingale(novo_ciclo);
@@ -1847,7 +1847,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             status: 'em_operacao',
             config,
             operacoes_executadas: 0,
-            operacoes_total: config.modo_continuo ? 999999 : config.quantidade_operacoes,
+            operacoes_total: config.gerenciamento === 'P6' || config.modo_continuo ? 999999 : config.quantidade_operacoes,
             lucro_acumulado: 0,
             perda_acumulada: 0,
             saldo_referencia: sessao?.perfil?.saldo || 0,

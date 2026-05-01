@@ -384,7 +384,8 @@ function PainelAutomacao({
             )}
           </div>
 
-          {/* Linha 2: Stop + Divisão + Valor por Op */}
+          {/* Linha 2: Stop + Divisão + Valor por Op (oculto para P6) */}
+          {form.gerenciamento !== 'P6' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-slate-400 mb-1.5 block">Valor do Stop (R$)</label>
@@ -423,6 +424,7 @@ function PainelAutomacao({
               />
             </div>
           </div>
+          )}
 
           {/* Linha 3: Mercado + Ativo + Timeframe + Payout */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
