@@ -179,20 +179,12 @@ export function calcularValorOperacao(params: {
     banca_atual,
   } = params;
 
-  // P6 tem sua própria lógica — não usa o early-return padrão
+  // P6: lê o nível atual diretamente — o result handler é responsável por avançar o nível.
+  // Não incrementa aqui para evitar double-increment (tick + result handler).
   if (estrategia === 'P6') {
     const capital = banca_atual ?? valor_base;
-    if (resultado_anterior === null || resultado_anterior === 'vitoria') {
-      // Início de sessão ou WIN: começa do nível 0
-      return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[0] / 100).toFixed(2))), novo_ciclo: 0 };
-    }
-    // LOSS: avança para próxima proteção
-    const proximoNivel = ciclo_martingale + 1;
-    if (proximoNivel >= 6) {
-      // 6ª proteção também perdeu — sessão encerrada, reinicia do nível 0
-      return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[0] / 100).toFixed(2))), novo_ciclo: 0 };
-    }
-    return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[proximoNivel] / 100).toFixed(2))), novo_ciclo: proximoNivel };
+    const nivel = Math.min(ciclo_martingale, 5);
+    return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[nivel] / 100).toFixed(2))), novo_ciclo: ciclo_martingale };
   }
 
   // Primeira operação ou sem resultado anterior (outros gerenciamentos)

@@ -1090,11 +1090,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Demais: usa o valor pré-computado pelo handler de resultado armazenado em valorAnteriorRef.
         // Recalcular aqui causava bug no Soros: o handler já incrementa cicloMartingale para 1,
         // então a recalculação entendia ciclo>=1 e retornava mão fixa em vez do valor Soros.
+        // P6: usa cicloMartingaleRef como índice do nível atual (já avançado pelo result handler)
         const P6_PERCENTAGENS_Q = [1.24, 2.62, 5.57, 11.84, 25.14, 53.38];
         const valorP6 = config.gerenciamento === 'P6'
-          ? (resultadoAnteriorRef.current === null
-              ? Math.max(0.01, parseFloat(((saldoP6Ref.current || saldoAnteriorRef.current || 1) * P6_PERCENTAGENS_Q[0] / 100).toFixed(2)))
-              : (valorAnteriorRef.current || Math.max(0.01, parseFloat(((saldoP6Ref.current || saldoAnteriorRef.current || 1) * P6_PERCENTAGENS_Q[0] / 100).toFixed(2)))))
+          ? Math.max(0.01, parseFloat(((saldoP6Ref.current || saldoAnteriorRef.current || 1) * P6_PERCENTAGENS_Q[Math.min(cicloMartingaleRef.current, 5)] / 100).toFixed(2)))
           : null;
         const valor = valorP6 !== null
           ? valorP6
@@ -1301,36 +1300,42 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           // Atualiza saldo P6 com o resultado desta operação
           saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current + diferenca);
 
-          const { valor: proximoValor, novo_ciclo } = calcularValorOperacao({
-            estrategia: automacao.config.gerenciamento,
-            valor_base: automacao.config.valor_por_operacao,
-            resultado_anterior: resultado,
-            valor_anterior: valorUsado,
-            multiplicador_martingale: automacao.config.multiplicador_martingale,
-            multiplicador_soros: automacao.config.multiplicador_soros,
-            payout: automacao.config.payout,
-            ciclo_martingale: cicloMartingaleRef.current,
-            max_martingale: automacao.config.max_martingale,
-            banca_atual: automacao.config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
-          });
-
-          setCicloMartingale(novo_ciclo);
-          setValorOperacaoAtual(proximoValor);
-          valorAnteriorRef.current = proximoValor;
-
-          // P6: contabiliza sessão concluída ao WIN e verifica meta diária
-          if (automacao.config.gerenciamento === 'P6' && resultado === 'vitoria') {
-            setSessoesConcluidasHoje(prev => {
-              const novas = prev + 1;
-              const alvo = automacao.config!.sessoes_alvo_dia ?? 1;
-              if (novas >= alvo) {
-                setAutomacao(p => ({ ...p, status: 'finalizado', ultima_verificacao: `Meta diária P6 atingida: ${novas}/${alvo} sessões.` }));
-              }
-              return novas;
+          // P6: avança o nível de proteção diretamente — não chama calcularValorOperacao
+          // para evitar double-increment (o tick já usa o nível atual corretamente)
+          if (automacao.config.gerenciamento === 'P6') {
+            const nivelAtual = cicloMartingaleRef.current;
+            if (resultado === 'vitoria') {
+              setCicloMartingale(0);
+              setSessoesConcluidasHoje(prev => {
+                const novas = prev + 1;
+                const alvo = automacao.config!.sessoes_alvo_dia ?? 1;
+                if (novas >= alvo) {
+                  setAutomacao(p => ({ ...p, status: 'finalizado', ultima_verificacao: `Meta diária P6 atingida: ${novas}/${alvo} sessões.` }));
+                }
+                return novas;
+              });
+            } else {
+              // LOSS: avança para próxima proteção; após 6ª perda reinicia
+              setCicloMartingale(nivelAtual >= 5 ? 0 : nivelAtual + 1);
+            }
+          } else {
+            const { valor: proximoValor, novo_ciclo } = calcularValorOperacao({
+              estrategia: automacao.config.gerenciamento,
+              valor_base: automacao.config.valor_por_operacao,
+              resultado_anterior: resultado,
+              valor_anterior: valorUsado,
+              multiplicador_martingale: automacao.config.multiplicador_martingale,
+              multiplicador_soros: automacao.config.multiplicador_soros,
+              payout: automacao.config.payout,
+              ciclo_martingale: cicloMartingaleRef.current,
+              max_martingale: automacao.config.max_martingale,
             });
+            setCicloMartingale(novo_ciclo);
+            setValorOperacaoAtual(proximoValor);
+            valorAnteriorRef.current = proximoValor;
           }
 
-          console.log(`[Vorna] Resultado: ${resultado} | Diferença: ${diferenca.toFixed(2)} | Próximo valor: ${proximoValor}`);
+          console.log(`[Vorna] Resultado: ${resultado} | Diferença: ${diferenca.toFixed(2)}`);
 
           // Notificação
           const ativoNotif = automacao.config.ativo;
