@@ -903,7 +903,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (!devEntrar && galeFinal.ativo && !galeFinal.disparado && galeFinal.minutoAlvo >= 0) {
           if (ehMomentoDeGale5min(galeFinal.minutoAlvo)) {
             const atingiuMetaGale = config.meta != null && automacao.lucro_acumulado >= config.meta;
-            const atingiuStopGale = automacao.perda_acumulada >= (config.valor_stop || Infinity);
+            const atingiuStopGale = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
             if (atingiuMetaGale || atingiuStopGale) {
               console.warn(`[Q5min] 🛑 Meta ou stop atingido no pré-gale: Meta=${atingiuMetaGale}, Stop=${atingiuStopGale}`);
               return;
@@ -949,7 +949,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           if (ultimoExecutado5min.current === chave) return;
 
           const atingiuMetaQ5 = config.meta != null && automacao.lucro_acumulado >= config.meta;
-          const atingiuStopQ5 = automacao.perda_acumulada >= (config.valor_stop || Infinity);
+          const atingiuStopQ5 = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
           if (atingiuMetaQ5 || atingiuStopQ5) {
             console.warn(`[Q5min] 🛑 Meta ou stop atingido no pré-entrada: Meta=${atingiuMetaQ5}, Stop=${atingiuStopQ5}`);
             return;
@@ -974,6 +974,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             payout: config.payout,
             ciclo_martingale: cicloMartingaleRef.current,
             max_martingale: config.max_martingale,
+            banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
           });
 
           const duracaoExec = config.duracao_expiracao || 60;
@@ -1049,8 +1050,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (ultimoQuadranteExecutado.current === chaveExecucao) return;
 
         const atingiuMetaQ = config.meta != null && automacao.lucro_acumulado >= config.meta;
-        const atingiuStopQ = automacao.perda_acumulada >= (config.valor_stop || Infinity);
-        const atingiuLimiteQ = !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+        const atingiuStopQ = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+        const atingiuLimiteQ = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
         if (atingiuMetaQ || atingiuStopQ || atingiuLimiteQ) {
           console.warn(`[Quadrante] 🛑 Condição de encerramento no pré-execução: Meta=${atingiuMetaQ}, Stop=${atingiuStopQ}, Limite=${atingiuLimiteQ}`);
           return;
@@ -1085,12 +1086,21 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         }
 
         // Primeira operação (sem resultado anterior): usa valor base.
+        // P6: usa saldo atual × percentagem do nível (não usa valor_por_operacao).
         // Demais: usa o valor pré-computado pelo handler de resultado armazenado em valorAnteriorRef.
         // Recalcular aqui causava bug no Soros: o handler já incrementa cicloMartingale para 1,
         // então a recalculação entendia ciclo>=1 e retornava mão fixa em vez do valor Soros.
-        const valor = resultadoAnteriorRef.current === null
-          ? config.valor_por_operacao
-          : (valorAnteriorRef.current || config.valor_por_operacao);
+        const P6_PERCENTAGENS_Q = [1.24, 2.62, 5.57, 11.84, 25.14, 53.38];
+        const valorP6 = config.gerenciamento === 'P6'
+          ? (resultadoAnteriorRef.current === null
+              ? Math.max(0.01, parseFloat(((saldoP6Ref.current || saldoAnteriorRef.current || 1) * P6_PERCENTAGENS_Q[0] / 100).toFixed(2)))
+              : (valorAnteriorRef.current || Math.max(0.01, parseFloat(((saldoP6Ref.current || saldoAnteriorRef.current || 1) * P6_PERCENTAGENS_Q[0] / 100).toFixed(2)))))
+          : null;
+        const valor = valorP6 !== null
+          ? valorP6
+          : (resultadoAnteriorRef.current === null
+              ? config.valor_por_operacao
+              : (valorAnteriorRef.current || config.valor_por_operacao));
         setValorOperacaoAtual(valor);
 
         console.log(`[Quadrante] Q${quadranteExec} — ${analiseExec.direcao_operacao.toUpperCase()} — R$ ${valor}`);
