@@ -153,6 +153,8 @@ export function analisarQuadrante(velas: Vela[], velasHistorico: Vela[] = []): A
 
 // ── Cálculo de Valor por Estratégia ──
 
+const P6_PERCENTAGENS = [1.24, 2.62, 5.57, 11.84, 25.14, 53.38];
+
 export function calcularValorOperacao(params: {
   estrategia: Gerenciamento;
   valor_base: number;
@@ -163,6 +165,7 @@ export function calcularValorOperacao(params: {
   payout: number;
   ciclo_martingale: number;
   max_martingale: number;
+  banca_atual?: number;
 }): { valor: number; novo_ciclo: number } {
   const {
     estrategia,
@@ -173,9 +176,26 @@ export function calcularValorOperacao(params: {
     payout,
     ciclo_martingale,
     max_martingale,
+    banca_atual,
   } = params;
 
-  // Primeira operação ou sem resultado anterior
+  // P6 tem sua própria lógica — não usa o early-return padrão
+  if (estrategia === 'P6') {
+    const capital = banca_atual ?? valor_base;
+    if (resultado_anterior === null || resultado_anterior === 'vitoria') {
+      // Início de sessão ou WIN: começa do nível 0
+      return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[0] / 100).toFixed(2))), novo_ciclo: 0 };
+    }
+    // LOSS: avança para próxima proteção
+    const proximoNivel = ciclo_martingale + 1;
+    if (proximoNivel >= 6) {
+      // 6ª proteção também perdeu — sessão encerrada, reinicia do nível 0
+      return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[0] / 100).toFixed(2))), novo_ciclo: 0 };
+    }
+    return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[proximoNivel] / 100).toFixed(2))), novo_ciclo: proximoNivel };
+  }
+
+  // Primeira operação ou sem resultado anterior (outros gerenciamentos)
   if (resultado_anterior === null) {
     return { valor: valor_base, novo_ciclo: 0 };
   }

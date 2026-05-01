@@ -352,20 +352,36 @@ function PainelAutomacao({
                 {configPlataforma.gerenciamentos_ativos.includes('Fixo') && <option value="Fixo">Fixo</option>}
                 {configPlataforma.gerenciamentos_ativos.includes('Martingale') && <option value="Martingale">Proteção</option>}
                 {configPlataforma.gerenciamentos_ativos.includes('Soros') && <option value="Soros">Soros</option>}
+                {configPlataforma.gerenciamentos_ativos.includes('P6') && <option value="P6">P6 — 6 Proteções</option>}
               </select>
             </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Quantidade de Operações</label>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={form.quantidade_operacoes}
-                onChange={e => atualizarForm('quantidade_operacoes', parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2.5 bg-slate-800/50 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-apex-trader-primary/50"
-                disabled={emOperacao}
-              />
-            </div>
+            {form.gerenciamento === 'P6' ? (
+              <div>
+                <label className="text-xs text-slate-400 mb-1.5 block">Sessões por dia (P6)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={form.sessoes_alvo_dia ?? 1}
+                  onChange={e => atualizarForm('sessoes_alvo_dia', parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2.5 bg-slate-800/50 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-apex-trader-primary/50"
+                  disabled={emOperacao}
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs text-slate-400 mb-1.5 block">Quantidade de Operações</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={form.quantidade_operacoes}
+                  onChange={e => atualizarForm('quantidade_operacoes', parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2.5 bg-slate-800/50 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-apex-trader-primary/50"
+                  disabled={emOperacao}
+                />
+              </div>
+            )}
           </div>
 
           {/* Linha 2: Stop + Divisão + Valor por Op */}

@@ -22,7 +22,7 @@ import { useData } from '../contexts/DataContext';
 import { useVorna } from '../lib/useVorna';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type TipoGestao = '2x1' | '4x2' | 'jc' | 'jcs';
+type TipoGestao = '2x1' | '4x2' | 'jc' | 'jcs' | 'p6';
 type TipoMercado = 'forex' | 'cripto';
 type Timeframe = 'M1' | 'M5' | 'M15';
 
@@ -40,11 +40,14 @@ interface HistoricoOp {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
+const P6_PCT = [1.24, 2.62, 5.57, 11.84, 25.14, 53.38];
+
 const gestaoOpcoes: { id: TipoGestao; titulo: string; descricao: string; cor: string }[] = [
   { id: '2x1', titulo: '2x1 Sem Soros', descricao: 'Entrada fixa · Stop após 1 loss', cor: 'text-trademaster-blue' },
   { id: '4x2', titulo: '4x2 Sem Soros', descricao: 'Ciclos de 4 operações · Máx. 2 losses', cor: 'text-amber-400' },
   { id: 'jc', titulo: 'Juros Compostos Sem Soros', descricao: '% da banca inicial por operação', cor: 'text-purple-400' },
   { id: 'jcs', titulo: 'Juros Compostos Com Soros', descricao: '% da banca atual + lucro anterior (WIN)', cor: 'text-emerald-400' },
+  { id: 'p6', titulo: 'P6 — 6 Proteções', descricao: '% da banca atual · Sessões diárias configuráveis', cor: 'text-blue-400' },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -56,7 +59,13 @@ function calcEntrada(
   bancaInicial: number,
   ultimoLucro: number,
   ultimoResultado: 'vitoria' | 'derrota' | null,
+  nivelP6 = 0,
 ): { valor: number; sorosAplicado: number } {
+  if (gestao === 'p6') {
+    const nivel = Math.min(nivelP6, 5);
+    const valor = Math.max(0.01, parseFloat((bancaAtual * P6_PCT[nivel] / 100).toFixed(2)));
+    return { valor, sorosAplicado: 0 };
+  }
   if (gestao === 'jc') {
     const valor = Math.max(0.01, parseFloat((bancaInicial * percentual / 100).toFixed(2)));
     return { valor, sorosAplicado: 0 };
@@ -101,6 +110,11 @@ export default function GestaoRisco() {
   const [lossesNoCiclo, setLossesNoCiclo] = React.useState(0);
   const [cicloAtual, setCicloAtual] = React.useState<Array<'vitoria' | 'derrota' | null>>([null, null, null, null]);
 
+  // P6 tracking
+  const [nivelP6, setNivelP6] = React.useState(0);
+  const [sessoesP6, setSessoesP6] = React.useState(0);
+  const [sessoesAlvoP6, setSessoesAlvoP6] = React.useState(10);
+
   // Register form
   const [mercado, setMercado] = React.useState<TipoMercado>('forex');
   const [timeframe, setTimeframe] = React.useState<Timeframe>('M5');
@@ -124,7 +138,7 @@ export default function GestaoRisco() {
 
   const opcaoAtual = gestaoOpcoes.find(o => o.id === gestao)!;
   const { valor: proximaEntrada, sorosAplicado: proximoSoros } = calcEntrada(
-    gestao, entradaBase, percentual, bancaAtual, bancaInicial, ultimoLucro, ultimoResultado
+    gestao, entradaBase, percentual, bancaAtual, bancaInicial, ultimoLucro, ultimoResultado, nivelP6
   );
   const retornoEstimado = parseFloat((proximaEntrada * payout / 100).toFixed(2));
 
@@ -151,6 +165,8 @@ export default function GestaoRisco() {
     setOpsNoCiclo(0);
     setLossesNoCiclo(0);
     setCicloAtual([null, null, null, null]);
+    setNivelP6(0);
+    setSessoesP6(0);
     setConfigurado(true);
   };
 
@@ -217,6 +233,21 @@ export default function GestaoRisco() {
       setLossesNoCiclo(novoLosses);
       setCicloAtual(novoCiclo);
     }
+    if (gestao === 'p6') {
+      if (resultado === 'vitoria') {
+        const novasSessoes = sessoesP6 + 1;
+        setSessoesP6(novasSessoes);
+        setNivelP6(0);
+        if (novasSessoes >= sessoesAlvoP6) novoStop = true;
+      } else {
+        const proximoNivel = nivelP6 + 1;
+        if (proximoNivel >= 6) {
+          setNivelP6(0); // sessão perdida, recomeça
+        } else {
+          setNivelP6(proximoNivel);
+        }
+      }
+    }
     if (novoStop) setEmStop(true);
   };
 
@@ -228,6 +259,9 @@ export default function GestaoRisco() {
       setOpsNoCiclo(0);
       setLossesNoCiclo(0);
       setCicloAtual([null, null, null, null]);
+    }
+    if (gestao === 'p6') {
+      setNivelP6(0);
     }
   };
 
@@ -287,7 +321,28 @@ export default function GestaoRisco() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {gestao === 'jc' || gestao === 'jcs' ? (
+            {gestao === 'p6' ? (
+              <>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-300">Sessões por dia</span>
+                  <input
+                    type="number" min="1" max="100" value={sessoesAlvoP6}
+                    onChange={e => setSessoesAlvoP6(Number(e.target.value))}
+                    className="mt-1 block w-full bg-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </label>
+                <div className="block">
+                  <span className="text-sm font-medium text-slate-300 block mb-1">Proteções (% da banca atual)</span>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {P6_PCT.map((p, i) => (
+                      <span key={i} className="text-xs bg-blue-500/10 border border-blue-500/20 text-blue-300 px-2 py-1 rounded-lg font-mono">
+                        P{i + 1}: {p}%
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : gestao === 'jc' || gestao === 'jcs' ? (
               <label className="block">
                 <span className="text-sm font-medium text-slate-300">
                   % por Operação
@@ -414,20 +469,60 @@ export default function GestaoRisco() {
               <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-red-400">
-                  {gestao === '2x1' ? 'STOP — Loss registrado' : 'STOP — 2 losses no ciclo'}
+                  {gestao === 'p6'
+                    ? `Meta diária atingida — ${sessoesP6}/${sessoesAlvoP6} sessões`
+                    : gestao === '2x1' ? 'STOP — Loss registrado' : 'STOP — 2 losses no ciclo'}
                 </p>
                 <p className="text-xs text-red-300/70 mt-1">
-                  {gestao === '2x1'
-                    ? 'Analise o mercado antes de continuar operando.'
-                    : 'Ciclo 4x2 encerrado. Analise antes de iniciar novo ciclo.'}
+                  {gestao === 'p6'
+                    ? 'Parabéns! Você atingiu sua meta diária de sessões P6.'
+                    : gestao === '2x1'
+                      ? 'Analise o mercado antes de continuar operando.'
+                      : 'Ciclo 4x2 encerrado. Analise antes de iniciar novo ciclo.'}
                 </p>
-                <button
-                  onClick={resetarCiclo}
-                  className="mt-3 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
-                >
-                  <RefreshCw size={12} />
-                  Novo Ciclo
-                </button>
+                {gestao !== 'p6' && (
+                  <button
+                    onClick={resetarCiclo}
+                    className="mt-3 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                  >
+                    <RefreshCw size={12} />
+                    Novo Ciclo
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* P6 painel de proteções */}
+          {gestao === 'p6' && !emStop && (
+            <div className="glass-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Proteção {nivelP6 + 1}/6 — {P6_PCT[nivelP6]}% da banca
+                </p>
+                <span className="text-xs font-black text-blue-400">{sessoesP6}/{sessoesAlvoP6} sessões</span>
+              </div>
+              <div className="flex gap-2 mb-3">
+                {P6_PCT.map((pct, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex-1 rounded-xl flex flex-col items-center justify-center border py-2 transition-all',
+                      i < nivelP6 ? 'bg-red-500/10 border-red-500/30 opacity-50' :
+                        i === nivelP6 ? 'bg-blue-500/15 border-blue-500/40 animate-pulse' :
+                          'bg-white/[0.02] border-white/5'
+                    )}
+                  >
+                    <span className="text-[9px] text-slate-500 font-bold">P{i + 1}</span>
+                    <span className={cn('text-[10px] font-black', i === nivelP6 ? 'text-blue-300' : 'text-slate-600')}>{pct}%</span>
+                  </div>
+                ))}
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-1.5">
+                <div
+                  className="bg-blue-500 h-1.5 rounded-full transition-all"
+                  style={{ width: `${(sessoesP6 / sessoesAlvoP6) * 100}%` }}
+                />
               </div>
             </div>
           )}

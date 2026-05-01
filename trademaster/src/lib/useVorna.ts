@@ -122,6 +122,7 @@ export interface UseVornaRetorno {
   segundosRestantes: number;
   cicloMartingale: number;
   valorOperacaoAtual: number;
+  sessoesConcluidasHoje: number;
   historicoQuadrantes: Quadrante[];
   // Quadrantes 5min
   quadrante5minAtual: Quadrante5min | null;
@@ -191,6 +192,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     const persistido = obterEstadoAutomacao();
     return persistido?.valorOperacaoAtual ?? 0;
   });
+  // P6: sessões concluídas no dia (persiste com chave de data para resetar à meia-noite)
+  const [sessoesConcluidasHoje, setSessoesConcluidasHoje] = useState(() => {
+    const key = `trademaster_p6_sessoes_${new Date().toDateString()}`;
+    return parseInt(localStorage.getItem(key) ?? '0', 10);
+  });
+  const saldoP6Ref = useRef(0);
   const [historicoQuadrantes, setHistoricoQuadrantes] = useState<Quadrante[]>([]);
 
   // Cavalo de Troia
@@ -266,6 +273,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       timestamp: new Date().toISOString(),
     });
   }, [automacao, cicloMartingale, valorOperacaoAtual, operacoesAbertas]);
+
+  // Persistir sessões P6 do dia (chave com data garante reset automático à meia-noite)
+  useEffect(() => {
+    const key = `trademaster_p6_sessoes_${new Date().toDateString()}`;
+    localStorage.setItem(key, String(sessoesConcluidasHoje));
+  }, [sessoesConcluidasHoje]);
 
   // Restaurar refs do estado persistido (executa uma vez no mount)
   useEffect(() => {
@@ -529,6 +542,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
+        banca_atual: config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -606,6 +620,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
+        banca_atual: config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -706,6 +721,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
+        banca_atual: config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -1272,6 +1288,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config.valor_por_operacao;
           valorAnteriorRef.current = valorUsado;
 
+          // Atualiza saldo P6 com o resultado desta operação
+          saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current + diferenca);
+
           const { valor: proximoValor, novo_ciclo } = calcularValorOperacao({
             estrategia: automacao.config.gerenciamento,
             valor_base: automacao.config.valor_por_operacao,
@@ -1282,11 +1301,24 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             payout: automacao.config.payout,
             ciclo_martingale: cicloMartingaleRef.current,
             max_martingale: automacao.config.max_martingale,
+            banca_atual: automacao.config.gerenciamento === 'P6' ? saldoP6Ref.current : undefined,
           });
 
           setCicloMartingale(novo_ciclo);
           setValorOperacaoAtual(proximoValor);
           valorAnteriorRef.current = proximoValor;
+
+          // P6: contabiliza sessão concluída ao WIN e verifica meta diária
+          if (automacao.config.gerenciamento === 'P6' && resultado === 'vitoria') {
+            setSessoesConcluidasHoje(prev => {
+              const novas = prev + 1;
+              const alvo = automacao.config!.sessoes_alvo_dia ?? 1;
+              if (novas >= alvo) {
+                setAutomacao(p => ({ ...p, status: 'finalizado', ultima_verificacao: `Meta diária P6 atingida: ${novas}/${alvo} sessões.` }));
+              }
+              return novas;
+            });
+          }
 
           console.log(`[Vorna] Resultado: ${resultado} | Diferença: ${diferenca.toFixed(2)} | Próximo valor: ${proximoValor}`);
 
@@ -1772,6 +1804,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       salvarConfigAutomacao(config);
       const saldoAtual = sessao?.perfil?.saldo || 0;
       saldoAnteriorRef.current = saldoAtual;
+      saldoP6Ref.current = saldoAtual;
       resultadoAnteriorRef.current = null;
       valorAnteriorRef.current = config.valor_por_operacao;
       ultimoQuadranteExecutado.current = '';
@@ -1917,6 +1950,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     segundosRestantes,
     cicloMartingale,
     valorOperacaoAtual,
+    sessoesConcluidasHoje,
     historicoQuadrantes,
     quadrante5minAtual,
     historicoQuadrantes5min,
