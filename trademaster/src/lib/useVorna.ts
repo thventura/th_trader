@@ -199,6 +199,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     return parseInt(localStorage.getItem(key) ?? '0', 10);
   });
   const saldoP6Ref = useRef(0);
+
   const [historicoQuadrantes, setHistoricoQuadrantes] = useState<Quadrante[]>([]);
 
   // Cavalo de Troia

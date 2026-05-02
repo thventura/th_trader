@@ -2350,14 +2350,14 @@ function PainelResultadosFluxo({ historico }: { historico: any[] }) {
 
 // ── Componente: Estatísticas Premium (Activity Rings + Histórico Apex) ──
 
-function SecaoEstatisticasPremium({ 
-  ops, 
-  bancaAtual, 
+function SecaoEstatisticasPremium({
+  ops,
+  bancaAtual,
   bancaInicial,
   totalPerformance,
   onSync
-}: { 
-  ops: any[], 
+}: {
+  ops: any[],
   bancaAtual: number,
   bancaInicial: number,
   totalPerformance: number,
@@ -2533,7 +2533,7 @@ function SecaoEstatisticasPremium({
                 {stats.lucro >= 0 ? '+' : ''}{formatCurrency(stats.lucro)}
               </p>
               <div className="mt-1 flex items-center gap-1">
-                 <span className="text-[10px] text-slate-400 font-bold">{stats.total} operações</span>
+                <span className="text-[10px] text-slate-400 font-bold">{stats.total} operações</span>
               </div>
             </div>
 
