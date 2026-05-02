@@ -983,6 +983,32 @@ export async function obterHistoricoOperacoes(): Promise<Op[]> {
   }
 }
 
+// ── Resultado Real de Operação via Histórico do SDK ──
+
+export async function obterResultadoOperacao(opId: string): Promise<{ resultado: 'vitoria' | 'derrota'; pnl: number } | null> {
+  if (!_sdk) return null;
+  try {
+    const positionsFacade = await _sdk.positions();
+    const history = positionsFacade.getPositionsHistory();
+    await history.fetchPrevPage();
+    const positions = history.getPositions();
+    const pos = positions.find((p: any) =>
+      String(p.id) === opId ||
+      String(p.externalId) === opId ||
+      String(p.internalId) === opId
+    );
+    if (!pos) return null;
+    const pnl = (pos.pnlNet ?? pos.pnl ?? 0) as number;
+    const invest = ((pos as any).invest ?? (pos as any).price ?? 0) as number;
+    return {
+      resultado: pnl > 0 ? 'vitoria' : 'derrota',
+      pnl: pnl > 0 ? pnl : -invest,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Payout do Ativo via SDK ──
 
 export async function obterPayoutAtivo(ativo: string): Promise<number | null> {

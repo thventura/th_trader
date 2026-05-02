@@ -146,6 +146,7 @@ function PainelAutomacao({
   setAtivoSelecionado,
   ativosSDK,
   afiliadoAprovado,
+  sessoesConcluidasHoje,
 }: {
   automacao: EstadoAutomacao;
   onIniciar: (config: ConfigAutomacao) => void;
@@ -157,6 +158,7 @@ function PainelAutomacao({
   setAtivoSelecionado: (a: string) => void;
   ativosSDK: ActiveInfo[];
   afiliadoAprovado?: boolean;
+  sessoesConcluidasHoje: number;
 }) {
   const configPlataforma: ConfigAutomacaoPlataforma = React.useMemo(() => {
     try {
@@ -926,49 +928,69 @@ function PainelAutomacao({
         {/* Progresso (visível quando em operação ou finalizado) */}
         {(emOperacao || finalizado) && (
           <div className="p-4 bg-slate-800/30 border border-white/5 rounded-xl">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Executadas</p>
-                <p className="text-lg font-bold text-white">
-                  {automacao.operacoes_executadas}/{automacao.operacoes_total}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Lucro</p>
-                <p className="text-lg font-bold text-emerald-500">
-                  <TrendingUp size={14} className="inline mr-1" />
-                  {formatCurrency(automacao.lucro_acumulado)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Perda</p>
-                <p className="text-lg font-bold text-red-500">
-                  <TrendingDown size={14} className="inline mr-1" />
-                  {formatCurrency(automacao.perda_acumulada)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Stop Restante</p>
-                <p className="text-lg font-bold text-amber-400">
-                  {formatCurrency(
-                    Math.max(0, (automacao.config?.valor_stop || 0) - automacao.perda_acumulada)
-                  )}
-                </p>
-              </div>
-            </div>
+            {(() => {
+              const ehP6 = automacao.config?.gerenciamento === 'P6';
+              const sessoesAlvo = automacao.config?.sessoes_alvo_dia ?? 1;
+              const barraProgresso = ehP6
+                ? sessoesAlvo > 0 ? (sessoesConcluidasHoje / sessoesAlvo) * 100 : 0
+                : automacao.operacoes_total > 0 ? (automacao.operacoes_executadas / automacao.operacoes_total) * 100 : 0;
 
-            {/* Barra de Progresso */}
-            <div className="mt-3 w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-apex-trader-primary rounded-full transition-all duration-500"
-                style={{
-                  width: `${automacao.operacoes_total > 0
-                    ? (automacao.operacoes_executadas / automacao.operacoes_total) * 100
-                    : 0
-                    }%`,
-                }}
-              />
-            </div>
+              return (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Executadas</p>
+                      <p className="text-lg font-bold text-white">
+                        {ehP6
+                          ? automacao.operacoes_executadas
+                          : `${automacao.operacoes_executadas}/${automacao.operacoes_total}`}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Lucro</p>
+                      <p className="text-lg font-bold text-emerald-500">
+                        <TrendingUp size={14} className="inline mr-1" />
+                        {formatCurrency(automacao.lucro_acumulado)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Perda</p>
+                      <p className="text-lg font-bold text-red-500">
+                        <TrendingDown size={14} className="inline mr-1" />
+                        {formatCurrency(automacao.perda_acumulada)}
+                      </p>
+                    </div>
+                    <div>
+                      {ehP6 ? (
+                        <>
+                          <p className="text-xs text-slate-500 mb-1">Sessões</p>
+                          <p className="text-lg font-bold text-apex-trader-primary">
+                            {sessoesConcluidasHoje}/{sessoesAlvo}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-slate-500 mb-1">Stop Restante</p>
+                          <p className="text-lg font-bold text-amber-400">
+                            {formatCurrency(
+                              Math.max(0, (automacao.config?.valor_stop || 0) - automacao.perda_acumulada)
+                            )}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Barra de Progresso */}
+                  <div className="mt-3 w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-apex-trader-primary rounded-full transition-all duration-500"
+                      style={{ width: `${barraProgresso}%` }}
+                    />
+                  </div>
+                </>
+              );
+            })()}
 
             {automacao.inicio && (
               <p className="text-xs text-slate-600 text-center mt-2">
@@ -2679,6 +2701,7 @@ function PainelCorretora({
   ativosSDK,
   modoVPS,
   vpsStatus,
+  sessoesConcluidasHoje,
 }: {
   sessao: NonNullable<ReturnType<typeof useVorna>['sessao']>;
   onDesconectar: () => void;
@@ -2710,6 +2733,7 @@ function PainelCorretora({
   ativosSDK: ActiveInfo[];
   modoVPS: boolean;
   vpsStatus: 'desconhecido' | 'online' | 'offline';
+  sessoesConcluidasHoje: number;
 }) {
   const [atualizando, setAtualizando] = useState(false);
   const [velasAberto, setVelasAberto] = useState(false);
@@ -2843,6 +2867,7 @@ function PainelCorretora({
         setAtivoSelecionado={setAtivoSelecionado}
         ativosSDK={ativosSDK}
         afiliadoAprovado={sessao.afiliadoAprovado}
+        sessoesConcluidasHoje={sessoesConcluidasHoje}
       />
 
       {/* Barra de diagnóstico — visível apenas durante automação ativa */}
@@ -3296,6 +3321,7 @@ export default function Corretora() {
     ativosSDK,
     modoVPS,
     vpsStatus,
+    sessoesConcluidasHoje,
   } = useVorna(userId, profile);
 
   // Quando conectar com sucesso, libera o painel novamente
@@ -3351,6 +3377,7 @@ export default function Corretora() {
           ativosSDK={ativosSDK}
           modoVPS={modoVPS}
           vpsStatus={vpsStatus}
+          sessoesConcluidasHoje={sessoesConcluidasHoje}
         />
       </ErrorBoundary>
     );
