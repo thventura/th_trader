@@ -37,12 +37,14 @@ interface PricingSectionProps extends React.ComponentProps<'div'> {
 	plans: Plan[];
 	heading: string;
 	description?: string;
+	className?: string;
 }
 
 export function PricingSection({
 	plans,
 	heading,
 	description,
+	className,
 	...props
 }: PricingSectionProps) {
 	const [frequency, setFrequency] = React.useState<'monthly' | 'yearly'>(
@@ -53,7 +55,7 @@ export function PricingSection({
 		<div
 			className={cn(
 				'flex w-full flex-col items-center justify-center space-y-5 p-4',
-				props.className,
+				className,
 			)}
 			{...props}
 		>

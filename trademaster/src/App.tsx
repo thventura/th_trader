@@ -27,13 +27,10 @@ const Prova = React.lazy(() => import('./pages/Prova'));
 const Desafio = React.lazy(() => import('./pages/Desafio'));
 const Comunidades = React.lazy(() => import('./pages/Comunidades'));
 const Planilha = React.lazy(() => import('./pages/Planilha'));
-const CalculadoraForex = React.lazy(() => import('./pages/CalculadoraForex'));
 const Landing = React.lazy(() => import('./pages/Landing'));
 const BemVindo = React.lazy(() => import('./pages/BemVindo'));
 const Quiz = React.lazy(() => import('./pages/Quiz'));
 const Obrigado = React.lazy(() => import('./pages/Obrigado'));
-const BingXPage = React.lazy(() => import('./pages/BingX'));
-
 // Loading fallback component
 const PageLoader = () => (
   <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
@@ -273,14 +270,12 @@ export default function App() {
                   ? <Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}>{estaEmManutencao('planilha') ? <ManutencaoScreen config={manutencaoConfig!} onExpire={() => setManutencaoConfig(c => c ? { ...c, ativo: false } : c)} /> : <Planilha />}</Layout>
                   : <Navigate to={user?.tier === 'gratuito' ? '/bem-vindo' : '/'} replace />
               } />
-              <Route path="/calculadora-forex" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}>{estaEmManutencao('calculadora') ? <ManutencaoScreen config={manutencaoConfig!} onExpire={() => setManutencaoConfig(c => c ? { ...c, ativo: false } : c)} /> : <CalculadoraForex />}</Layout>} />
               <Route path="/comunidades" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><Comunidades /></Layout>} />
               <Route path="/perfil" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><Perfil /></Layout>} />
               {/* Páginas premium — com PremiumGate */}
               <Route path="/bem-vindo" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><PremiumGate tier={user?.tier || 'gratuito'}><BemVindo /></PremiumGate></Layout>} />
               <Route path="/" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><PremiumGate tier={user?.tier || 'gratuito'}>{estaEmManutencao('dashboard') ? <ManutencaoScreen config={manutencaoConfig!} onExpire={() => setManutencaoConfig(c => c ? { ...c, ativo: false } : c)} /> : <Dashboard />}</PremiumGate></Layout>} />
               <Route path="/corretora" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><PremiumGate tier={user?.tier || 'gratuito'}>{estaEmManutencao('corretora') ? <ManutencaoScreen config={manutencaoConfig!} onExpire={() => setManutencaoConfig(c => c ? { ...c, ativo: false } : c)} /> : <Corretora />}</PremiumGate></Layout>} />
-              <Route path="/bingx" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><PremiumGate tier={user?.tier || 'gratuito'}><BingXPage /></PremiumGate></Layout>} />
               <Route path="/operacoes" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><PremiumGate tier={user?.tier || 'gratuito'}>{estaEmManutencao('operacoes') ? <ManutencaoScreen config={manutencaoConfig!} onExpire={() => setManutencaoConfig(c => c ? { ...c, ativo: false } : c)} /> : <Operacoes />}</PremiumGate></Layout>} />
               <Route path="/gestao-risco" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><PremiumGate tier={user?.tier || 'gratuito'}>{estaEmManutencao('gestao') ? <ManutencaoScreen config={manutencaoConfig!} onExpire={() => setManutencaoConfig(c => c ? { ...c, ativo: false } : c)} /> : <GestaoRisco />}</PremiumGate></Layout>} />
               <Route path="/mindset" element={<Layout userRole={user?.role || 'user'} userTier={user?.tier || 'gratuito'} userCreatedAt={user?.created_at}><PremiumGate tier={user?.tier || 'gratuito'}>{estaEmManutencao('mindset') ? <ManutencaoScreen config={manutencaoConfig!} onExpire={() => setManutencaoConfig(c => c ? { ...c, ativo: false } : c)} /> : <Mindset />}</PremiumGate></Layout>} />

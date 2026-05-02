@@ -22,8 +22,6 @@ import {
   Check,
   FileSpreadsheet,
   Lock,
-  Calculator,
-  TrendingUp,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { BRANDING } from '../config/branding';
@@ -50,7 +48,7 @@ interface Notificacao {
 }
 
 // Páginas acessíveis gratuitamente (sem badge PRO)
-const PAGINAS_GRATUITAS = ['/planilha', '/calculadora-forex', '/perfil', '/comunidades'];
+const PAGINAS_GRATUITAS = ['/planilha', '/perfil', '/comunidades'];
 
 export default function Layout({ children, userRole, userTier, userCreatedAt }: LayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -130,8 +128,6 @@ export default function Layout({ children, userRole, userTier, userCreatedAt }: 
     { to: '/bem-vindo', icon: Home, label: 'Seja Bem-Vindo' },
     { to: '/', icon: LayoutDashboard, label: 'Visão Geral' },
     { to: '/corretora', icon: Globe, label: 'Corretora' },
-    { to: '/bingx', icon: TrendingUp, label: 'Crypto/Forex' },
-    { to: '/calculadora-forex', icon: Calculator, label: 'Calculadora Forex' },
     { to: '/mindset', icon: BrainCircuit, label: `Psicologia do ${BRANDING.platformName}` },
     { to: '/aulas', icon: GraduationCap, label: 'Treinamentos' },
     { to: '/desafio', icon: Trophy, label: 'Desafio 3P' },

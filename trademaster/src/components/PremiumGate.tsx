@@ -1,3 +1,4 @@
+import React from 'react';
 import { Lock, Crown } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
