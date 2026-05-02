@@ -989,21 +989,36 @@ export async function obterResultadoOperacao(opId: string): Promise<{ resultado:
   if (!_sdk) return null;
   try {
     const positionsFacade = await _sdk.positions();
+
+    const matchId = (p: any) =>
+      String(p.id ?? '') === opId ||
+      String(p.externalId ?? '') === opId ||
+      String(p.internalId ?? '') === opId;
+
+    // 1ª tentativa: getAllPositions — atualizado via WS em tempo real, mais rápido
+    const allPositions = positionsFacade.getAllPositions();
+    const posLive = allPositions.find((p: any) => {
+      const status = (p.status || '').toLowerCase();
+      const fechada = status !== 'open' && status !== '' && status !== 'pending';
+      return matchId(p) && fechada;
+    });
+
+    const extrairResultado = (p: any) => {
+      const pnl = ((p as any).pnlNet ?? (p as any).pnl ?? 0) as number;
+      const invest = ((p as any).invest ?? (p as any).price ?? 0) as number;
+      return { resultado: (pnl > 0 ? 'vitoria' : 'derrota') as 'vitoria' | 'derrota', pnl: pnl > 0 ? pnl : -invest };
+    };
+
+    if (posLive) return extrairResultado(posLive);
+
+    // 2ª tentativa: histórico paginado (fallback caso a posição já saiu de getAllPositions)
     const history = positionsFacade.getPositionsHistory();
     await history.fetchPrevPage();
-    const positions = history.getPositions();
-    const pos = positions.find((p: any) =>
-      String(p.id) === opId ||
-      String(p.externalId) === opId ||
-      String(p.internalId) === opId
-    );
-    if (!pos) return null;
-    const pnl = (pos.pnlNet ?? pos.pnl ?? 0) as number;
-    const invest = ((pos as any).invest ?? (pos as any).price ?? 0) as number;
-    return {
-      resultado: pnl > 0 ? 'vitoria' : 'derrota',
-      pnl: pnl > 0 ? pnl : -invest,
-    };
+    const historicPositions = history.getPositions();
+    const posHist = historicPositions.find(matchId);
+    if (!posHist) return null;
+
+    return extrairResultado(posHist);
   } catch {
     return null;
   }

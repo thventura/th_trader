@@ -1192,9 +1192,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Aguardar o segundo 59 da vela da opção (1s antes do fechamento).
         // A vela da opção começa no próximo múltiplo de 60s após hora_envio.
         // Ler em sec 54 (duracaoOp - 2s) causava falsos LOSS: preço revertia nos últimos 6s.
-        // Aguardar expiração real da opção + 2s de buffer para processamento da corretora
-        const expiracaoAt = Math.ceil(enviada / 60000) * 60000 + duracaoOp;
-        if (Date.now() < expiracaoAt + 2000) return;
+        // Aguardar expiração real da opção (hora_envio + duração) + 2s de buffer
+        if (Date.now() < enviada + duracaoOp + 2000) return;
 
         const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config?.valor_por_operacao || 0;
         let resultado: 'vitoria' | 'derrota' = 'derrota';
