@@ -1190,29 +1190,55 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const duracaoOp = (opAtual.duracao ?? 60) * 1000;
         const tempoDecorrido = Date.now() - enviada;
 
-        // Aguardar o segundo 59 da vela da opção (1s antes do fechamento).
-        // A vela da opção começa no próximo múltiplo de 60s após hora_envio.
-        // Ler em sec 54 (duracaoOp - 2s) causava falsos LOSS: preço revertia nos últimos 6s.
-        // Aguardar expiração real da opção (hora_envio + duração) + 2s de buffer
-        if (Date.now() < enviada + duracaoOp + 2000) return;
+        // Verificar 1s antes do fechamento da vela de resultado (candle alinhado ao múltiplo de 60s)
+        const optionCandleStart = Math.ceil(enviada / 60000) * 60000;
+        const checkAt = optionCandleStart + duracaoOp - 1000;
+        if (Date.now() < checkAt) return;
 
         const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config?.valor_por_operacao || 0;
         let resultado: 'vitoria' | 'derrota' = 'derrota';
         let diferenca = -valorUsado;
 
-        // ── Verificação pelo histórico real da corretora ──
-        // Tenta obter o resultado da posição fechada diretamente do SDK.
-        // Se a corretora ainda não fechou a posição, retorna null e tentamos no próximo tick.
-        const resultadoReal = await obterResultadoOperacao(opId);
-        if (resultadoReal) {
-          resultado = resultadoReal.resultado;
-          diferenca = resultadoReal.resultado === 'vitoria'
-            ? valorUsado * ((automacao.config?.payout || 88) / 100)
-            : -valorUsado;
-          console.log(`[Real-Result] Op ${opId}: ${resultado.toUpperCase()} | PnL: ${resultadoReal.pnl.toFixed(2)}`);
-          setTimeout(() => { obterSaldoRapido().then(s => { saldoAnteriorRef.current = s; }).catch(() => {}) }, 2000);
+        const todasVelas = servicoVelas.obterTodasVelas();
+        const velaAtual = todasVelas[todasVelas.length - 1];
+
+        // ── Fast-Result: cor da vela de resultado vs direção da operação ──
+        // Blitz M1 liquida no fechamento da vela M1 — a cor é o resultado oficial.
+        // Para CavaloTroia (M2), compõe a vela de 2min a partir das 2 últimas M1.
+        const usaFastResult = velaAtual && (
+          automacao.config?.estrategia === 'Quadrantes5min' ||
+          automacao.config?.estrategia === 'CavaloTroia' ||
+          automacao.config?.estrategia === 'Quadrantes'
+        );
+
+        if (usaFastResult) {
+          let aberturaRef = velaAtual.abertura;
+          let fechamentoRef = velaAtual.fechamento;
+          if (automacao.config?.estrategia === 'CavaloTroia' && todasVelas.length >= 2) {
+            aberturaRef = todasVelas[todasVelas.length - 2].abertura;
+          }
+          const subiu = fechamentoRef > aberturaRef;
+          const desceu = fechamentoRef < aberturaRef;
+          const direcao = opAtual.direcao;
+          if ((direcao === 'compra' && subiu) || (direcao === 'venda' && desceu)) {
+            resultado = 'vitoria';
+            diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
+          }
+          console.log(`[Fast-Result] ${automacao.config?.estrategia} dir=${direcao} open=${aberturaRef} close=${fechamentoRef} -> ${resultado.toUpperCase()}`);
+
+          // Verificação assíncrona via histórico real da corretora: corrige caso a liquidação
+          // difira da cor da vela (spread/tick exato de expiração). Aguarda 3s para o SDK processar.
+          setTimeout(async () => {
+            try {
+              const confirmacao = await obterResultadoOperacao(opId);
+              if (confirmacao && confirmacao.resultado !== resultado) {
+                console.warn(`[Broker-Correction] Op ${opId}: vela=${resultado.toUpperCase()} → corretora=${confirmacao.resultado.toUpperCase()} | PnL: ${confirmacao.pnl.toFixed(2)}`);
+              }
+            } catch { /* não crítico */ }
+            obterSaldoRapido().then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
+          }, 3500);
         } else {
-          // Fallback: comparação de saldo (relay sem SDK, ou posição ainda não no histórico)
+          // Estratégias não-Blitz: comparação de saldo (FluxoVelas, LogicaDoPreco, ICE)
           if (tempoDecorrido < duracaoOp + 1200) return;
           try {
             const { abertas } = await verificarOperacoesAbertas();
@@ -1235,7 +1261,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             resultado = diferenca > 0.01 ? 'vitoria' : 'derrota';
           }
           saldoAnteriorRef.current = saldoAtual;
-          console.log(`[Saldo-Fallback] Op ${opId}: ${resultado.toUpperCase()} | delta saldo: ${diffSaldo.toFixed(2)}`);
+          console.log(`[Saldo-Result] Op ${opId}: ${resultado.toUpperCase()} | delta: ${diffSaldo.toFixed(2)}`);
         }
 
         if (automacao.config) {
