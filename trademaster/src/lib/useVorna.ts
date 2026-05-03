@@ -200,6 +200,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     return parseInt(localStorage.getItem(key) ?? '0', 10);
   });
   const saldoP6Ref = useRef(0);
+  // Banca fixada no início de cada sessão P6 — usada para calcular todas as 6 entradas
+  // sem reajustar com a banca depletada pelas perdas anteriores da mesma sessão.
+  const bancaInicioSessaoP6Ref = useRef(0);
 
   const [historicoQuadrantes, setHistoricoQuadrantes] = useState<Quadrante[]>([]);
 
@@ -545,7 +548,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
-        banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -623,7 +626,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
-        banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -724,7 +727,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         payout: config.payout,
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
-        banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
       });
 
       setCicloMartingale(novo_ciclo);
@@ -977,7 +980,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             payout: config.payout,
             ciclo_martingale: cicloMartingaleRef.current,
             max_martingale: config.max_martingale,
-            banca_atual: config.gerenciamento === 'P6' ? (saldoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+            banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
           });
 
           const duracaoExec = config.duracao_expiracao || 60;
@@ -1095,7 +1098,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // então a recalculação entendia ciclo>=1 e retornava mão fixa em vez do valor Soros.
         // P6: usa cicloMartingaleRef como índice do nível atual (já avançado pelo result handler)
         const valorP6 = config.gerenciamento === 'P6'
-          ? calcularP6Entradas(saldoP6Ref.current || saldoAnteriorRef.current || 1, config.payout || 88)[Math.min(cicloMartingaleRef.current, 5)]
+          ? calcularP6Entradas(bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 1, config.payout || 88)[Math.min(cicloMartingaleRef.current, 5)]
           : null;
         const valor = valorP6 !== null
           ? valorP6
@@ -1305,6 +1308,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           if (automacao.config.gerenciamento === 'P6') {
             const nivelAtual = cicloMartingaleRef.current;
             if (resultado === 'vitoria') {
+              // Nova sessão: fixa a banca atual como referência para calcular as próximas 6 entradas
+              bancaInicioSessaoP6Ref.current = saldoP6Ref.current;
               setCicloMartingale(0);
               setSessoesConcluidasHoje(prev => {
                 const novas = prev + 1;
@@ -1820,6 +1825,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const saldoAtual = sessao?.perfil?.saldo || 0;
       saldoAnteriorRef.current = saldoAtual;
       saldoP6Ref.current = saldoAtual;
+      bancaInicioSessaoP6Ref.current = saldoAtual;
       resultadoAnteriorRef.current = null;
       valorAnteriorRef.current = config.valor_por_operacao;
       ultimoQuadranteExecutado.current = '';
