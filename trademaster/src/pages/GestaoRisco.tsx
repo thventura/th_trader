@@ -20,6 +20,7 @@ import {
 import { cn, formatCurrency } from '../lib/utils';
 import { useData } from '../contexts/DataContext';
 import { useVorna } from '../lib/useVorna';
+import { calcularP6Entradas } from '../lib/motor-quadrantes';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TipoGestao = '2x1' | '4x2' | 'jc' | 'jcs' | 'p6';
@@ -39,9 +40,6 @@ interface HistoricoOp {
   ativo: string;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────────
-const P6_PCT = [1.24, 2.62, 5.57, 11.84, 25.14, 53.38];
-
 const gestaoOpcoes: { id: TipoGestao; titulo: string; descricao: string; cor: string }[] = [
   { id: '2x1', titulo: '2x1 Sem Soros', descricao: 'Entrada fixa · Stop após 1 loss', cor: 'text-trademaster-blue' },
   { id: '4x2', titulo: '4x2 Sem Soros', descricao: 'Ciclos de 4 operações · Máx. 2 losses', cor: 'text-amber-400' },
@@ -60,11 +58,11 @@ function calcEntrada(
   ultimoLucro: number,
   ultimoResultado: 'vitoria' | 'derrota' | null,
   nivelP6 = 0,
+  payout = 87,
 ): { valor: number; sorosAplicado: number } {
   if (gestao === 'p6') {
-    const nivel = Math.min(nivelP6, 5);
-    const valor = Math.max(0.01, parseFloat((bancaAtual * P6_PCT[nivel] / 100).toFixed(2)));
-    return { valor, sorosAplicado: 0 };
+    const entradas = calcularP6Entradas(bancaAtual, payout);
+    return { valor: entradas[Math.min(nivelP6, 5)], sorosAplicado: 0 };
   }
   if (gestao === 'jc') {
     const valor = Math.max(0.01, parseFloat((bancaInicial * percentual / 100).toFixed(2)));
@@ -138,7 +136,7 @@ export default function GestaoRisco() {
 
   const opcaoAtual = gestaoOpcoes.find(o => o.id === gestao)!;
   const { valor: proximaEntrada, sorosAplicado: proximoSoros } = calcEntrada(
-    gestao, entradaBase, percentual, bancaAtual, bancaInicial, ultimoLucro, ultimoResultado, nivelP6
+    gestao, entradaBase, percentual, bancaAtual, bancaInicial, ultimoLucro, ultimoResultado, nivelP6, payout
   );
   const retornoEstimado = parseFloat((proximaEntrada * payout / 100).toFixed(2));
 
@@ -332,11 +330,11 @@ export default function GestaoRisco() {
                   />
                 </label>
                 <div className="block">
-                  <span className="text-sm font-medium text-slate-300 block mb-1">Proteções (% da banca atual)</span>
+                  <span className="text-sm font-medium text-slate-300 block mb-1">Proteções — lucro alvo 1% da banca</span>
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {P6_PCT.map((p, i) => (
+                    {calcularP6Entradas(bancaAtual || entradaBase * 10, payout).map((v, i) => (
                       <span key={i} className="text-xs bg-blue-500/10 border border-blue-500/20 text-blue-300 px-2 py-1 rounded-lg font-mono">
-                        P{i + 1}: {p}%
+                        P{i + 1}: R${v.toFixed(2)}
                       </span>
                     ))}
                   </div>
@@ -494,38 +492,43 @@ export default function GestaoRisco() {
           )}
 
           {/* P6 painel de proteções */}
-          {gestao === 'p6' && !emStop && (
-            <div className="glass-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Proteção {nivelP6 + 1}/6 — {P6_PCT[nivelP6]}% da banca
-                </p>
-                <span className="text-xs font-black text-blue-400">{sessoesP6}/{sessoesAlvoP6} sessões</span>
-              </div>
-              <div className="flex gap-2 mb-3">
-                {P6_PCT.map((pct, i) => (
+          {gestao === 'p6' && !emStop && (() => {
+            const entradasP6 = calcularP6Entradas(bancaAtual, payout);
+            return (
+              <div className="glass-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    Proteção {nivelP6 + 1}/6 — lucro alvo 1% da banca
+                  </p>
+                  <span className="text-xs font-black text-blue-400">{sessoesP6}/{sessoesAlvoP6} sessões</span>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  {entradasP6.map((val, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        'flex-1 rounded-xl flex flex-col items-center justify-center border py-2 transition-all',
+                        i < nivelP6 ? 'bg-red-500/10 border-red-500/30 opacity-50' :
+                          i === nivelP6 ? 'bg-blue-500/15 border-blue-500/40 animate-pulse' :
+                            'bg-white/[0.02] border-white/5'
+                      )}
+                    >
+                      <span className="text-[9px] text-slate-500 font-bold">P{i + 1}</span>
+                      <span className={cn('text-[9px] font-black', i === nivelP6 ? 'text-blue-300' : 'text-slate-600')}>
+                        R${val.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-1.5">
                   <div
-                    key={i}
-                    className={cn(
-                      'flex-1 rounded-xl flex flex-col items-center justify-center border py-2 transition-all',
-                      i < nivelP6 ? 'bg-red-500/10 border-red-500/30 opacity-50' :
-                        i === nivelP6 ? 'bg-blue-500/15 border-blue-500/40 animate-pulse' :
-                          'bg-white/[0.02] border-white/5'
-                    )}
-                  >
-                    <span className="text-[9px] text-slate-500 font-bold">P{i + 1}</span>
-                    <span className={cn('text-[10px] font-black', i === nivelP6 ? 'text-blue-300' : 'text-slate-600')}>{pct}%</span>
-                  </div>
-                ))}
+                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${(sessoesP6 / sessoesAlvoP6) * 100}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-slate-800 rounded-full h-1.5">
-                <div
-                  className="bg-blue-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${(sessoesP6 / sessoesAlvoP6) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 4x2 ciclo visual */}
           {gestao === '4x2' && !emStop && (

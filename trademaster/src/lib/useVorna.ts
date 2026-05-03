@@ -36,6 +36,7 @@ import {
   obterQuadranteAtual,
   analisarQuadrante,
   calcularValorOperacao,
+  calcularP6Entradas,
   proximoHorarioExecucao,
   ehMomentoDeExecutar,
   formatarCountdown,
@@ -1093,9 +1094,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Recalcular aqui causava bug no Soros: o handler já incrementa cicloMartingale para 1,
         // então a recalculação entendia ciclo>=1 e retornava mão fixa em vez do valor Soros.
         // P6: usa cicloMartingaleRef como índice do nível atual (já avançado pelo result handler)
-        const P6_PERCENTAGENS_Q = [1.24, 2.62, 5.57, 11.84, 25.14, 53.38];
         const valorP6 = config.gerenciamento === 'P6'
-          ? Math.max(0.01, parseFloat(((saldoP6Ref.current || saldoAnteriorRef.current || 1) * P6_PERCENTAGENS_Q[Math.min(cicloMartingaleRef.current, 5)] / 100).toFixed(2)))
+          ? calcularP6Entradas(saldoP6Ref.current || saldoAnteriorRef.current || 1, config.payout || 88)[Math.min(cicloMartingaleRef.current, 5)]
           : null;
         const valor = valorP6 !== null
           ? valorP6
@@ -1829,7 +1829,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       ultimoCandleFluxoRef.current = 0;
       setCicloMartingale(0);
       const valorInicialP6 = config.gerenciamento === 'P6'
-        ? Math.max(0.01, parseFloat((saldoAtual * 1.24 / 100).toFixed(2)))
+        ? calcularP6Entradas(saldoAtual || 1, config.payout || 88)[0]
         : config.valor_por_operacao;
       setValorOperacaoAtual(valorInicialP6);
       setHistoricoQuadrantes([]);

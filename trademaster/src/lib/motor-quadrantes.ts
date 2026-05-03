@@ -151,9 +151,23 @@ export function analisarQuadrante(velas: Vela[], velasHistorico: Vela[] = []): A
   };
 }
 
-// ── Cálculo de Valor por Estratégia ──
+// ── Entradas P6 ──
+// Cada proteção recupera todas as perdas anteriores + 1% da banca como lucro alvo.
+// 6ª entrada = restante da banca (all-in).
+export function calcularP6Entradas(banca: number, payout: number): number[] {
+  const payoutDecimal = Math.max(0.01, payout) / 100;
+  const alvo = banca * 0.01;
+  const entradas: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    const perdaAcumulada = entradas.reduce((s, v) => s + v, 0);
+    entradas.push(Math.max(0.01, parseFloat(((perdaAcumulada + alvo) / payoutDecimal).toFixed(2))));
+  }
+  const totalUsado = entradas.reduce((s, v) => s + v, 0);
+  entradas.push(Math.max(0.01, parseFloat((banca - totalUsado).toFixed(2))));
+  return entradas;
+}
 
-const P6_PERCENTAGENS = [1.24, 2.62, 5.57, 11.84, 25.14, 53.38];
+// ── Cálculo de Valor por Estratégia ──
 
 export function calcularValorOperacao(params: {
   estrategia: Gerenciamento;
@@ -180,11 +194,11 @@ export function calcularValorOperacao(params: {
   } = params;
 
   // P6: lê o nível atual diretamente — o result handler é responsável por avançar o nível.
-  // Não incrementa aqui para evitar double-increment (tick + result handler).
   if (estrategia === 'P6') {
     const capital = banca_atual ?? valor_base;
     const nivel = Math.min(ciclo_martingale, 5);
-    return { valor: Math.max(0.01, parseFloat((capital * P6_PERCENTAGENS[nivel] / 100).toFixed(2))), novo_ciclo: ciclo_martingale };
+    const entradas = calcularP6Entradas(capital, payout);
+    return { valor: entradas[nivel], novo_ciclo: ciclo_martingale };
   }
 
   // Primeira operação ou sem resultado anterior (outros gerenciamentos)
