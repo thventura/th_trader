@@ -243,6 +243,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const executandoFluxoRef = useRef<boolean>(false);
   const ultimoMinutoExecRef = useRef<number>(0);
   const velasAtuaisRef = useRef<Vela[]>([]);
+  // Timer de entrada pendente (agendada para virada de vela)
+  const pendingEntryTimerRef = useRef<number | null>(null);
 
   // Lógica do Preço
   const [analiseLP, setAnaliseLP] = useState<AnaliseLogicaPreco | null>(null);
@@ -555,35 +557,51 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
 
-      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao, valor, 60, config.instrumento_tipo))
-        .then(async id => {
-          console.log(`[FluxoVelas] Ordem enviada! ID: ${id}`);
-          setOperacoesAbertas(prev => [...prev, {
-            id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: new Date().toISOString(), duracao: 60, status: 'enviada',
-          }]);
+      // Agendar envio para a virada exata da vela (segundo 0 do próximo minuto)
+      if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
+      const agoraFV = new Date();
+      const msAteVelaFV = ehM1
+        ? Math.max(0, (60 - agoraFV.getSeconds()) * 1000 - agoraFV.getMilliseconds())
+        : 0;
+      console.log(`[FluxoVelas] Entrada agendada para +${Math.round(msAteVelaFV)}ms (virada de vela)`);
+      pendingEntryTimerRef.current = window.setTimeout(() => {
+        pendingEntryTimerRef.current = null;
+        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao, valor, 60, config.instrumento_tipo))
+          .then(async id => {
+            console.log(`[FluxoVelas] Ordem enviada! ID: ${id}`);
+            setOperacoesAbertas(prev => [...prev, {
+              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: new Date().toISOString(), duracao: 60, status: 'enviada',
+            }]);
 
-          setEstadoFluxoVelas(prev => ({
-            ...prev,
-            historico_resultados: [{ id, timestamp: new Date().toISOString(), ativo: config.ativo, timeframe: config.timeframe, modo: analise.modo_ativo, direcao: analise.direcao_operacao!, resultado: 'vitoria', lucro: 0, janela_horas: config.janela_horas || 1 }, ...prev.historico_resultados].slice(0, 50)
-          }));
+            setEstadoFluxoVelas(prev => ({
+              ...prev,
+              historico_resultados: [{ id, timestamp: new Date().toISOString(), ativo: config.ativo, timeframe: config.timeframe, modo: analise.modo_ativo, direcao: analise.direcao_operacao!, resultado: 'vitoria', lucro: 0, janela_horas: config.janela_horas || 1 }, ...prev.historico_resultados].slice(0, 50)
+            }));
 
-          try {
-            const saldoAposEnvio = await obterSaldoRapido();
-            // Blitz options: a entrada é debitada imediatamente ao abrir.
-            // Para calcular o delta correto, precisamos do saldo PRÉ-entrada (antes do débito).
-            saldoAnteriorRef.current = saldoAposEnvio + valor;
-          } catch {
-            saldoAnteriorRef.current -= valor;
-          }
-          setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
-        })
-        .catch(err => {
-          console.error('[FluxoVelas] Erro no envio:', err);
-          ultimoMinutoOperadoRef.current = '';
-        });
+            try {
+              const saldoAposEnvio = await obterSaldoRapido();
+              // Blitz options: a entrada é debitada imediatamente ao abrir.
+              // Para calcular o delta correto, precisamos do saldo PRÉ-entrada (antes do débito).
+              saldoAnteriorRef.current = saldoAposEnvio + valor;
+            } catch {
+              saldoAnteriorRef.current -= valor;
+            }
+            setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+          })
+          .catch(err => {
+            console.error('[FluxoVelas] Erro no envio:', err);
+            ultimoMinutoOperadoRef.current = '';
+          });
+      }, msAteVelaFV);
     }, 250);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      if (pendingEntryTimerRef.current !== null) {
+        clearTimeout(pendingEntryTimerRef.current);
+        pendingEntryTimerRef.current = null;
+      }
+    };
   }, [automacao.status, automacao.config, automacao.lucro_acumulado, automacao.perda_acumulada, automacao.operacoes_executadas, automacao.operacoes_total, modoVPS]);
 
   // ── Tick de Execução LogicaDoPreco ──
@@ -993,30 +1011,38 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
           const todasVelas = servicoVelas.obterTodasVelas();
           const precoEntrada = todasVelas[todasVelas.length - 1]?.fechamento;
-          const horaEnvioReal = new Date().toISOString();
 
-          comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoExec, config.instrumento_tipo))
-            .then(async id => {
-              setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analiseExec.direcao_operacao, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
-              try {
-                const s = await obterSaldoRapido();
-                saldoAnteriorRef.current = s + valor;
-              } catch { saldoAnteriorRef.current -= valor; }
-              setHistoricoQuadrantes5min(prev => [...prev, {
-                numero: quadranteExec,
-                inicio_minuto: obterInicioMinuto5min(quadranteExec),
-                fim_minuto: obterFimMinuto5min(quadranteExec),
-                velas: velasExec,
-                analise: analiseExec,
-                resultado: null,
-                gale_nivel: 0,
-              }]);
-              setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
-            })
-            .catch(err => {
-            console.error('[Q5min] Erro ao executar:', err);
-            ultimoExecutado5min.current = '';
-          });
+          // Agendar envio para a virada exata do quadrante (segundo 0 do próximo minuto)
+          if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
+          const agoraQ5 = new Date();
+          const msAteVelaQ5 = Math.max(0, (60 - agoraQ5.getSeconds()) * 1000 - agoraQ5.getMilliseconds());
+          console.log(`[Q5min] Entrada agendada para +${Math.round(msAteVelaQ5)}ms (virada de vela)`);
+          pendingEntryTimerRef.current = window.setTimeout(() => {
+            pendingEntryTimerRef.current = null;
+            const horaEnvioReal = new Date().toISOString();
+            comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoExec, config.instrumento_tipo))
+              .then(async id => {
+                setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analiseExec.direcao_operacao, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
+                try {
+                  const s = await obterSaldoRapido();
+                  saldoAnteriorRef.current = s + valor;
+                } catch { saldoAnteriorRef.current -= valor; }
+                setHistoricoQuadrantes5min(prev => [...prev, {
+                  numero: quadranteExec,
+                  inicio_minuto: obterInicioMinuto5min(quadranteExec),
+                  fim_minuto: obterFimMinuto5min(quadranteExec),
+                  velas: velasExec,
+                  analise: analiseExec,
+                  resultado: null,
+                  gale_nivel: 0,
+                }]);
+                setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+              })
+              .catch(err => {
+                console.error('[Q5min] Erro ao executar:', err);
+                ultimoExecutado5min.current = '';
+              });
+          }, msAteVelaQ5);
         }
         return;
       }
@@ -1112,52 +1138,60 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const duracaoQ = config.duracao_expiracao || 60;
         const todasVelas = servicoVelas.obterTodasVelas();
         const precoEntrada = todasVelas[todasVelas.length - 1]?.fechamento;
-        const horaEnvioReal = new Date().toISOString();
 
-        comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoQ, config.instrumento_tipo))
-          .then(async id => {
-            const opAberta: OperacaoAberta = {
-              id,
-              ativo: config.ativo,
-              direcao: analiseExec.direcao_operacao,
-              valor,
-              hora_envio: horaEnvioReal,
-              duracao: duracaoQ,
-              status: 'enviada',
-              preco_entrada: precoEntrada,
-            };
-            setOperacoesAbertas(prev => [...prev, opAberta]);
+        // Agendar envio para a virada exata do quadrante (segundo 0 do próximo minuto)
+        if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
+        const agoraQ = new Date();
+        const msAteVelaQ = Math.max(0, (60 - agoraQ.getSeconds()) * 1000 - agoraQ.getMilliseconds());
+        console.log(`[Quadrante] Entrada agendada para +${Math.round(msAteVelaQ)}ms (virada de vela)`);
+        pendingEntryTimerRef.current = window.setTimeout(() => {
+          pendingEntryTimerRef.current = null;
+          const horaEnvioReal = new Date().toISOString();
+          comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoQ, config.instrumento_tipo))
+            .then(async id => {
+              const opAberta: OperacaoAberta = {
+                id,
+                ativo: config.ativo,
+                direcao: analiseExec.direcao_operacao,
+                valor,
+                hora_envio: horaEnvioReal,
+                duracao: duracaoQ,
+                status: 'enviada',
+                preco_entrada: precoEntrada,
+              };
+              setOperacoesAbertas(prev => [...prev, opAberta]);
 
-            try {
-              // Aguarda dedução do investimento ser refletida pelo servidor (Blitz debita imediato mas pode ter latência)
-              await new Promise(r => setTimeout(r, 400));
-              const saldoAposEnvio = await obterSaldoRapido();
-              saldoAnteriorRef.current = saldoAposEnvio + valor;
-            } catch {
-              saldoAnteriorRef.current -= valor;
-            }
+              try {
+                // Aguarda dedução do investimento ser refletida pelo servidor (Blitz debita imediato mas pode ter latência)
+                await new Promise(r => setTimeout(r, 400));
+                const saldoAposEnvio = await obterSaldoRapido();
+                saldoAnteriorRef.current = saldoAposEnvio + valor;
+              } catch {
+                saldoAnteriorRef.current -= valor;
+              }
 
-            setHistoricoQuadrantes(prev => [
-              ...prev,
-              {
-                numero: quadranteExec,
-                inicio_minuto: (quadranteExec - 1) * 10,
-                fim_minuto: (quadranteExec - 1) * 10 + 9,
-                velas: velasExec,
-                analise: analiseExec,
-                resultado: null,
-              },
-            ]);
+              setHistoricoQuadrantes(prev => [
+                ...prev,
+                {
+                  numero: quadranteExec,
+                  inicio_minuto: (quadranteExec - 1) * 10,
+                  fim_minuto: (quadranteExec - 1) * 10 + 9,
+                  velas: velasExec,
+                  analise: analiseExec,
+                  resultado: null,
+                },
+              ]);
 
-            setAutomacao(prev => ({
-              ...prev,
-              ultima_verificacao: new Date().toISOString(),
-            }));
-          })
-          .catch(err => {
-            console.error('[Quadrante] Erro ao executar operação:', err);
-            ultimoQuadranteExecutado.current = '';
-          });
+              setAutomacao(prev => ({
+                ...prev,
+                ultima_verificacao: new Date().toISOString(),
+              }));
+            })
+            .catch(err => {
+              console.error('[Quadrante] Erro ao executar operação:', err);
+              ultimoQuadranteExecutado.current = '';
+            });
+        }, msAteVelaQ);
       }
     };
 
@@ -1166,6 +1200,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (pendingEntryTimerRef.current !== null) {
+        clearTimeout(pendingEntryTimerRef.current);
+        pendingEntryTimerRef.current = null;
+      }
     };
   }, [automacao.status, automacao.config, modoVPS]);
 
