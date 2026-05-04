@@ -18,8 +18,8 @@ export const BRANDING = {
   logoUrl: 'https://i.imgur.com/bg6Lqmo.png',
   logoAlt: 'Virtus Trader',
   loginLogoUrl: 'https://i.imgur.com/bg6Lqmo.png',
-  loginBgMobileUrl: 'https://i.imgur.com/Ov80XMJ.png',
-  loginBgDesktopUrl: 'https://i.imgur.com/wXgjFrV.png',
+  loginBgMobileUrl: 'https://i.imgur.com/MhLrOjF.png',
+  loginBgDesktopUrl: 'https://i.imgur.com/XmMTrsl.png',
 
   // ── Estratégias ativas ────────────────────────────────────────────────────────
   // Deve bater com o tipo EstrategiaAnalise em types.ts
