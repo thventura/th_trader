@@ -60,7 +60,7 @@ import type { VornaCarteira, ConfigAutomacao, EstadoAutomacao, Quadrante, Estado
 import { AUTOMACAO_PLATAFORMA_KEY, CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT, type ConfigAutomacaoPlataforma, type EstrategiaAnalise } from '../types';
 import type { OperacaoAberta } from '../lib/vorna';
 
-const BROKER_URL = 'https://trade.vornabroker.com/traderoom';
+const BROKER_URL = 'https://trade.vornabroker.com/register?aff=821404&aff_model=revenue&afftrack=';
 
 const ATIVOS_FOREX = [
   'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD', 'EUR/GBP',
