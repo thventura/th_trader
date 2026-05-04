@@ -509,6 +509,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const gatilhoM1 = ehM1 && segundos >= 57;
       const gatilhoPadrao = !ehM1 && segundos <= 2;
 
+      // Pre-warm aos 54s (3s antes do gate) para que blitzOptions() resolva antes do segundo 0
+      if (ehM1 && segundos >= 54 && segundos < 57) { preAquecerConexao(); return; }
+
       if (!gatilhoM1 && !gatilhoPadrao) return;
 
       const analise = analisarFluxoVelas(velas, config.janela_horas || 1, true);
@@ -570,11 +573,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[FluxoVelas] Entrada agendada para +${Math.round(msAteVelaFV)}ms (virada de vela)`);
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
+        // hora_envio fixada no limite do minuto para o polling calcular o checkAt correto
+        const horaEnvioFV = new Date(Math.floor(Date.now() / 60000) * 60000).toISOString();
         comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao, valor, 60, config.instrumento_tipo))
           .then(async id => {
             console.log(`[FluxoVelas] Ordem enviada! ID: ${id}`);
             setOperacoesAbertas(prev => [...prev, {
-              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: new Date().toISOString(), duracao: 60, status: 'enviada',
+              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioFV, duracao: 60, status: 'enviada',
             }]);
 
             setEstadoFluxoVelas(prev => ({
@@ -811,6 +816,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     const tick = () => {
       const agora = new Date();
       const minutos = agora.getMinutes();
+      const segundosTick = agora.getSeconds();
+
+      // Pre-warm aos 54s para qualquer estratégia que entra perto do segundo 0
+      if (segundosTick >= 54) preAquecerConexao();
 
       if (config.estrategia === 'CavaloTroia') {
         // ── Cavalo de Troia ──
@@ -1026,7 +1035,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           console.log(`[Q5min] Entrada agendada para +${Math.round(msAteVelaQ5)}ms (virada de vela)`);
           pendingEntryTimerRef.current = window.setTimeout(() => {
             pendingEntryTimerRef.current = null;
-            const horaEnvioReal = new Date().toISOString();
+            const horaEnvioReal = new Date(Math.floor(Date.now() / 60000) * 60000).toISOString();
             comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoExec, config.instrumento_tipo))
               .then(async id => {
                 setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analiseExec.direcao_operacao, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
@@ -1156,7 +1165,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         console.log(`[Quadrante] Entrada agendada para +${Math.round(msAteVelaQ)}ms (virada de vela)`);
         pendingEntryTimerRef.current = window.setTimeout(() => {
           pendingEntryTimerRef.current = null;
-          const horaEnvioReal = new Date().toISOString();
+          const horaEnvioReal = new Date(Math.floor(Date.now() / 60000) * 60000).toISOString();
           comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoQ, config.instrumento_tipo))
             .then(async id => {
               const opAberta: OperacaoAberta = {

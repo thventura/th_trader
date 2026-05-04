@@ -35,7 +35,7 @@ let _sdk: ClientSdk | null = null;
 let _blitzPrewarmed: Promise<Awaited<ReturnType<ClientSdk['blitzOptions']>>> | null = null;
 
 export function preAquecerConexao(): void {
-  if (!_sdk) return;
+  if (!_sdk || _blitzPrewarmed !== null) return; // já aquecendo, não reiniciar
   _blitzPrewarmed = _sdk.blitzOptions();
 }
 
