@@ -15,6 +15,7 @@ import {
   criarOperacaoFluxoVelas,
   adicionarOperacaoSync,
   executarOperacaoVorna,
+  preAquecerConexao,
   verificarSessaoValida,
   reconectarVorna,
   comReconexao,
@@ -557,6 +558,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
 
+      // Pré-aquecer conexão SDK agora (57-58s) para que blitz.buy() dispare sem latência no segundo 0
+      preAquecerConexao();
+
       // Agendar envio para a virada exata da vela (segundo 0 do próximo minuto)
       if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
       const agoraFV = new Date();
@@ -1012,6 +1016,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const todasVelas = servicoVelas.obterTodasVelas();
           const precoEntrada = todasVelas[todasVelas.length - 1]?.fechamento;
 
+          // Pré-aquecer conexão SDK para reduzir latência no segundo 0
+          preAquecerConexao();
+
           // Agendar envio para a virada exata do quadrante (segundo 0 do próximo minuto)
           if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
           const agoraQ5 = new Date();
@@ -1138,6 +1145,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const duracaoQ = config.duracao_expiracao || 60;
         const todasVelas = servicoVelas.obterTodasVelas();
         const precoEntrada = todasVelas[todasVelas.length - 1]?.fechamento;
+
+        // Pré-aquecer conexão SDK para reduzir latência no segundo 0
+        preAquecerConexao();
 
         // Agendar envio para a virada exata do quadrante (segundo 0 do próximo minuto)
         if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);

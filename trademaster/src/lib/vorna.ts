@@ -32,6 +32,12 @@ const OPS_KEY = 'trademaster_ops';
 // ── SDK instance (módulo-level) ──
 
 let _sdk: ClientSdk | null = null;
+let _blitzPrewarmed: Promise<Awaited<ReturnType<ClientSdk['blitzOptions']>>> | null = null;
+
+export function preAquecerConexao(): void {
+  if (!_sdk) return;
+  _blitzPrewarmed = _sdk.blitzOptions();
+}
 
 export function getSdk(): ClientSdk | null {
   return _sdk;
@@ -783,7 +789,9 @@ export async function executarOperacaoVorna(
 ): Promise<string> {
   // ── SDK local (disponível em dev sem proxy) ──────────────────────────────────
   if (_sdk) {
-    const blitz = await _sdk.blitzOptions();
+    const blitzPromise = _blitzPrewarmed ?? _sdk.blitzOptions();
+    _blitzPrewarmed = null;
+    const blitz = await blitzPromise;
     const actives = blitz.getActives();
 
     if (actives.length === 0) {
