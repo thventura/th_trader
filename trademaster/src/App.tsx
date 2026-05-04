@@ -110,6 +110,13 @@ const useAuth = () => {
     // 1. Load from existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
+      // Se a URL tem token de recuperação de senha, não autenticar automaticamente —
+      // deixar o Login.tsx exibir o formulário de redefinição.
+      if (window.location.hash.includes('type=recovery')) {
+        setLoading(false);
+        initialLoadDone = true;
+        return;
+      }
       resolveUser(session, 'getSession');
     }).catch((err) => {
       console.error('[AUTH] getSession error:', err);
@@ -123,6 +130,12 @@ const useAuth = () => {
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Evento de recuperação de senha: não autenticar, apenas parar o loading
+      if (event === 'PASSWORD_RECOVERY') {
         setLoading(false);
         return;
       }
