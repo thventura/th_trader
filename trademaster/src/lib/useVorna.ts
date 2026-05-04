@@ -570,11 +570,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const msAteVelaFV = ehM1
         ? Math.max(0, (60 - agoraFV.getSeconds()) * 1000 - agoraFV.getMilliseconds())
         : 0;
+      // Calculado agora (gate 54-58s), Math.ceil garante o próximo minuto mesmo se setTimeout atrasar 1ms
+      const horaEnvioFV = new Date(Math.ceil(agoraFV.getTime() / 60000) * 60000).toISOString();
       console.log(`[FluxoVelas] Entrada agendada para +${Math.round(msAteVelaFV)}ms (virada de vela)`);
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
-        // hora_envio fixada no limite do minuto para o polling calcular o checkAt correto
-        const horaEnvioFV = new Date(Math.floor(Date.now() / 60000) * 60000).toISOString();
         comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao, valor, 60, config.instrumento_tipo))
           .then(async id => {
             console.log(`[FluxoVelas] Ordem enviada! ID: ${id}`);
@@ -1032,10 +1032,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
           const agoraQ5 = new Date();
           const msAteVelaQ5 = Math.max(0, (60 - agoraQ5.getSeconds()) * 1000 - agoraQ5.getMilliseconds());
+          // Calculado agora (gate 54-58s) — Math.ceil garante o próximo minuto correto
+          const horaEnvioReal = new Date(Math.ceil(agoraQ5.getTime() / 60000) * 60000).toISOString();
           console.log(`[Q5min] Entrada agendada para +${Math.round(msAteVelaQ5)}ms (virada de vela)`);
           pendingEntryTimerRef.current = window.setTimeout(() => {
             pendingEntryTimerRef.current = null;
-            const horaEnvioReal = new Date(Math.floor(Date.now() / 60000) * 60000).toISOString();
             comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoExec, config.instrumento_tipo))
               .then(async id => {
                 setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analiseExec.direcao_operacao, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
@@ -1162,10 +1163,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
         const agoraQ = new Date();
         const msAteVelaQ = Math.max(0, (60 - agoraQ.getSeconds()) * 1000 - agoraQ.getMilliseconds());
+        // Calculado agora (gate 57-58s) — Math.ceil garante o próximo minuto correto
+        const horaEnvioReal = new Date(Math.ceil(agoraQ.getTime() / 60000) * 60000).toISOString();
         console.log(`[Quadrante] Entrada agendada para +${Math.round(msAteVelaQ)}ms (virada de vela)`);
         pendingEntryTimerRef.current = window.setTimeout(() => {
           pendingEntryTimerRef.current = null;
-          const horaEnvioReal = new Date(Math.floor(Date.now() / 60000) * 60000).toISOString();
           comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoQ, config.instrumento_tipo))
             .then(async id => {
               const opAberta: OperacaoAberta = {
