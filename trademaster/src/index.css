@@ -244,6 +244,15 @@ html.light .glass-card:hover {
 }
 
 /* ===== REFINED NEON LOGIN EFFECTS ===== */
+.login-bg-tint {
+  position: absolute;
+  inset: 0;
+  background: #3b82f6;
+  mix-blend-mode: hue;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .pulsing-background-overlay {
   position: absolute;
   inset: 0;

@@ -120,6 +120,7 @@ export default function Login() {
       `}</style>
 
       <div className="absolute inset-0 z-[1] pointer-events-none">
+        <div className="login-bg-tint" />
         <div className="pulsing-background-overlay" />
         <div className="neon-bg-overlay-dark" />
       </div>
