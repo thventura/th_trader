@@ -17,8 +17,15 @@ export default function Login() {
   const [success, setSuccess] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
-  // Detecta evento PASSWORD_RECOVERY (usuário clicou no link do e-mail)
+  // Detecta token de recuperação de senha na URL hash (ex: #type=recovery&access_token=...)
+  // A checagem síncrona na hash resolve a corrida de timing com o onAuthStateChange.
   React.useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      setModo('reset');
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setModo('reset');
