@@ -1033,6 +1033,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           ultimoExecutado5min.current = chave;
           entryMinute5minRef.current = minutos;
 
+          // P6: travar banca de sessão na primeira entrada (garante valores consistentes até o próximo WIN)
+          if (config.gerenciamento === 'P6' && bancaInicioSessaoP6Ref.current === 0) {
+            const bancaTravada = saldoAnteriorRef.current || 1;
+            bancaInicioSessaoP6Ref.current = bancaTravada;
+            saldoP6Ref.current = bancaTravada;
+          }
+
           const { valor, novo_ciclo } = calcularValorOperacao({
             estrategia: config.gerenciamento,
             valor_base: config.valor_por_operacao,
@@ -1043,7 +1050,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             payout: config.payout,
             ciclo_martingale: cicloMartingaleRef.current,
             max_martingale: config.max_martingale,
-            banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+            banca_atual: config.gerenciamento === 'P6' ? bancaInicioSessaoP6Ref.current : undefined,
           });
 
           const duracaoExec = config.duracao_expiracao || 60;
@@ -1171,9 +1178,15 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Demais: usa o valor pré-computado pelo handler de resultado armazenado em valorAnteriorRef.
         // Recalcular aqui causava bug no Soros: o handler já incrementa cicloMartingale para 1,
         // então a recalculação entendia ciclo>=1 e retornava mão fixa em vez do valor Soros.
+        // P6: travar banca de sessão na primeira entrada
+        if (config.gerenciamento === 'P6' && bancaInicioSessaoP6Ref.current === 0) {
+          const bancaTravada = saldoAnteriorRef.current || 1;
+          bancaInicioSessaoP6Ref.current = bancaTravada;
+          saldoP6Ref.current = bancaTravada;
+        }
         // P6: usa cicloMartingaleRef como índice do nível atual (já avançado pelo result handler)
         const valorP6 = config.gerenciamento === 'P6'
-          ? calcularP6Entradas(bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 1, config.payout || 88)[Math.min(cicloMartingaleRef.current, 5)]
+          ? calcularP6Entradas(bancaInicioSessaoP6Ref.current, config.payout || 88)[Math.min(cicloMartingaleRef.current, 5)]
           : null;
         const valor = valorP6 !== null
           ? valorP6
@@ -1304,9 +1317,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const msParaExpiracao = Math.max(0, optionCandleStart + duracaoOp - Date.now());
           if (msParaExpiracao > 0) await new Promise(r => setTimeout(r, msParaExpiracao));
 
-          // Consultar resultado oficial da corretora (até 5 tentativas × 500ms = 2.5s máx)
+          // Consultar resultado oficial da corretora (até 10 tentativas × 500ms = 5s máx)
           let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
-          for (let tentativa = 0; tentativa < 5 && !brokerResult; tentativa++) {
+          for (let tentativa = 0; tentativa < 10 && !brokerResult; tentativa++) {
             brokerResult = await obterResultadoOperacao(opId);
             if (!brokerResult) await new Promise(r => setTimeout(r, 500));
           }
@@ -1316,21 +1329,29 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             diferenca = brokerResult.pnl;
             console.log(`[Corretora-Result] ${automacao.config?.estrategia} -> ${resultado.toUpperCase()} | PnL: ${diferenca.toFixed(2)}`);
           } else {
-            // Fallback: cor da vela (SDK indisponível ou posição não localizada)
+            // Fallback: vela que FECHOU no vencimento (não a vela atual em formação)
+            // optionCandleStart/1000 = timestamp (s) da vela M1 que expirou a opção
             const todasVelasF = servicoVelas.obterTodasVelas();
-            const velaResultado = todasVelasF[todasVelasF.length - 1];
+            const resultCandleTs = optionCandleStart / 1000;
+            const velaResultado =
+              todasVelasF.find(v => v.timestamp === resultCandleTs) ??
+              todasVelasF.find(v => v.timestamp === resultCandleTs - 60) ??
+              todasVelasF[todasVelasF.length - 2] ??
+              todasVelasF[todasVelasF.length - 1];
             if (velaResultado) {
               let abRef = velaResultado.abertura;
               let fcRef = velaResultado.fechamento;
               if (automacao.config?.estrategia === 'CavaloTroia' && todasVelasF.length >= 2) {
-                abRef = todasVelasF[todasVelasF.length - 2].abertura;
+                const velaAnterior = todasVelasF.find(v => v.timestamp === resultCandleTs - 60)
+                  ?? todasVelasF[todasVelasF.length - 2];
+                abRef = velaAnterior?.abertura ?? abRef;
               }
               const direcao = opAtual.direcao;
               if ((direcao === 'compra' && fcRef > abRef) || (direcao === 'venda' && fcRef < abRef)) {
                 resultado = 'vitoria';
                 diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
               }
-              console.log(`[Vela-Fallback] dir=${direcao} open=${abRef} close=${fcRef} -> ${resultado.toUpperCase()}`);
+              console.log(`[Vela-Fallback] ts=${resultCandleTs} dir=${direcao} open=${abRef} close=${fcRef} -> ${resultado.toUpperCase()}`);
             }
           }
           obterSaldoRapido().then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
@@ -1404,6 +1425,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             if (resultado === 'vitoria') {
               // Nova sessão: fixa a banca atual como referência para calcular as próximas 6 entradas
               bancaInicioSessaoP6Ref.current = saldoP6Ref.current;
+              cicloMartingaleRef.current = 0; // atualiza ref diretamente, sem esperar re-render
               setCicloMartingale(0);
               setSessoesConcluidasHoje(prev => {
                 const novas = prev + 1;
@@ -1415,7 +1437,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               });
             } else {
               // LOSS: avança para próxima proteção; após 6ª perda reinicia
-              setCicloMartingale(nivelAtual >= 5 ? 0 : nivelAtual + 1);
+              const novoNivel = nivelAtual >= 5 ? 0 : nivelAtual + 1;
+              cicloMartingaleRef.current = novoNivel; // atualiza ref diretamente
+              setCicloMartingale(novoNivel);
             }
           } else {
             const { valor: proximoValor, novo_ciclo } = calcularValorOperacao({
