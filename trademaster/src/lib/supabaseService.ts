@@ -163,6 +163,8 @@ export async function updateProfile(userId: string, updates: Partial<ProfileRow>
 }
 
 export async function getAllProfiles(): Promise<ProfileRow[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
     return comCache('allProfiles', 30_000, async () => {
         try {
             const { data, error } = await supabase
@@ -342,6 +344,8 @@ export async function deleteTodasOperacoesUsuario(userId: string) {
  * ADMIN: Busca todas as operações de todos os usuários
  */
 export async function getTodasOperacoes(): Promise<(OperacaoRow & { profiles: { email: string | null, nome: string | null } })[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Não autenticado');
     const { data, error } = await supabase
         .from('operacoes')
         .select('*, profiles:user_id(email, nome)')
@@ -588,8 +592,6 @@ export interface RankingEntry {
     id: string;
     nome: string;
     foto_url: string | null;
-    banca_inicial: number;
-    lucro_total: number;
     vitorias: number;
     total_ops: number;
     win_rate: number;
@@ -606,42 +608,39 @@ export interface RankingEntry {
 export async function getGlobalRanking(): Promise<RankingEntry[]> {
     return comCache('ranking', 60_000, async () => {
         try {
-            // 1 query: todos os profiles
+            // RPCs com SECURITY DEFINER: acessam os dados de todos os alunos de forma
+            // controlada, retornando apenas os campos necessários para o ranking
+            // (sem e-mail, WhatsApp, senhas ou saldos em R$).
             const { data: profiles, error: pErr } = await supabase
-                .from('profiles')
-                .select('id, nome, foto_url, banca_inicial, banca_atual, win_rate');
+                .rpc('get_ranking_profiles');
             if (pErr) throw pErr;
 
-            // 1 query: todas as operações (agrupamos em JS)
             const { data: todasOps } = await supabase
-                .from('operacoes')
-                .select('user_id, resultado, lucro');
+                .rpc('get_ranking_operacoes');
             const opsPorUser = new Map<string, { total: number; vitorias: number }>();
-            (todasOps || []).forEach(op => {
+            (todasOps || []).forEach((op: { user_id: string; resultado: string; lucro: number }) => {
                 const entry = opsPorUser.get(op.user_id) || { total: 0, vitorias: 0 };
                 entry.total++;
                 if (op.resultado === 'vitoria') entry.vitorias++;
                 opsPorUser.set(op.user_id, entry);
             });
 
-            // 1 query: todos os progressos de aula
             const { data: todoProgresso } = await supabase
-                .from('aula_progresso')
-                .select('user_id, aula_id')
-                .eq('concluida', true);
+                .rpc('get_ranking_progresso');
             const progressoPorUser = new Map<string, number>();
-            (todoProgresso || []).forEach(p => {
+            (todoProgresso || []).forEach((p: { user_id: string }) => {
                 progressoPorUser.set(p.user_id, (progressoPorUser.get(p.user_id) || 0) + 1);
             });
 
-            // Montar ranking sem queries adicionais
-            const ranking: RankingEntry[] = (profiles || []).map(p => {
+            const ranking: RankingEntry[] = (profiles || []).map((p: {
+                id: string; nome: string | null; foto_url: string | null;
+                lucro_percentual: number; win_rate: number;
+            }) => {
                 const userOps = opsPorUser.get(p.id) || { total: 0, vitorias: 0 };
                 const total_ops = userOps.total;
                 const vitorias = userOps.vitorias;
-                const lucro_total = parseFloat((p.banca_atual - p.banca_inicial).toFixed(2));
-                const lucro_percentual = p.banca_inicial > 0 ? parseFloat(((lucro_total / p.banca_inicial) * 100).toFixed(2)) : 0;
                 const win_rate = total_ops > 0 ? Math.round((vitorias / total_ops) * 100) : 0;
+                const lucro_percentual = p.lucro_percentual ?? 0;
 
                 const score = parseFloat((
                     (lucro_percentual * 0.6) +
@@ -649,7 +648,6 @@ export async function getGlobalRanking(): Promise<RankingEntry[]> {
                     (Math.min(total_ops / 50, 1) * 10)
                 ).toFixed(2));
 
-                // XP e Level calculados localmente
                 const aulasConcluidas = progressoPorUser.get(p.id) || 0;
                 const baseXP = (total_ops * 20) + (vitorias * 30) + (aulasConcluidas * 100);
                 const level = Math.floor(baseXP / 1000) + 1;
@@ -659,8 +657,6 @@ export async function getGlobalRanking(): Promise<RankingEntry[]> {
                     id: p.id,
                     nome: p.nome || 'Trader',
                     foto_url: p.foto_url,
-                    banca_inicial: p.banca_inicial,
-                    lucro_total,
                     vitorias,
                     total_ops,
                     win_rate,
@@ -702,11 +698,15 @@ export async function calculateUserStats(userId: string, opsCount: number, winsC
 
 // ─── Copy Trade ──────────────────────────────────────────
 
-export async function getSeguidoresCopyTrade(): Promise<ProfileRow[]> {
+export interface CopyTradeFollower {
+    id: string;
+}
+
+export async function getSeguidoresCopyTrade(): Promise<CopyTradeFollower[]> {
     try {
         const { data, error } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id')
             .eq('copy_trade_ativo', true);
         if (error) {
             console.warn('[getSeguidoresCopyTrade] Error:', error.code, error.message);
@@ -725,7 +725,7 @@ export async function updateCopyTradeAtivo(userId: string, ativo: boolean) {
 
 export async function replicarOperacoesParaSeguidores(
     ops: Omit<OperacaoRow, 'created_at'>[],
-    seguidores: ProfileRow[]
+    seguidores: CopyTradeFollower[]
 ) {
     if (ops.length === 0 || seguidores.length === 0) return;
     const copias: Omit<OperacaoRow, 'created_at'>[] = [];
