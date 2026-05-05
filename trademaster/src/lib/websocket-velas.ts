@@ -129,6 +129,8 @@ class ServicoVelas {
   // Polling via relay (fallback quando SDK não conecta do browser)
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
   private pollingAtivo: boolean = false;
+  private activeId: number | null = null;
+  private sincronizandoManual: boolean = false;
 
   // Cache de dados carregados (por ativo)
   private velasPorAtivo: Record<string, Vela[]> = {};
@@ -192,6 +194,7 @@ class ServicoVelas {
       }
 
       const activeId = active.id;
+      this.activeId = activeId;
       const intervalInSeconds = parseInt(interval) * 60;
 
       // 1. Carregar histórico inicial via SDK
@@ -304,6 +307,7 @@ class ServicoVelas {
       }
 
       const size = parseInt(interval) * 60;
+      this.activeId = active.id;
       const wsSymbol = mapearSymbol(symbol);
 
       // 1. Carregar histórico inicial (300 velas)
@@ -831,6 +835,40 @@ class ServicoVelas {
       this.velasPorAtivo = {};
     }
     this.notificarListeners();
+  }
+
+  sincronizarCandlesImediato(): void {
+    if (this.sincronizandoManual || !this.activeId) return;
+    this.sincronizandoManual = true;
+    const size = parseInt(this.intervalAtual) * 60;
+    const wsSymbol = this.symbolAtual;
+    const activeId = this.activeId;
+
+    obterVelasViaRelay(activeId, size, undefined, 20)
+      .then(rawPoll => {
+        if (rawPoll.length > 0) {
+          const velasFormatadas: Vela[] = rawPoll.map((c: any) => {
+            const ab = Number(c.open); const fc = Number(c.close);
+            return {
+              timestamp: Number(c.from), abertura: ab, maxima: Number(c.max),
+              minima: Number(c.min), fechamento: fc, volume: Number(c.volume) || 0,
+              cor: (fc >= ab ? 'alta' : 'baixa') as 'alta' | 'baixa',
+            };
+          });
+          this.mergeVelas(wsSymbol, velasFormatadas);
+          console.log(`[Velas] Sincronização pré-gate: ${velasFormatadas.length} velas atualizadas.`);
+        }
+      })
+      .catch(() => {
+        if (this.wsRealtime && this.wsRealtime.readyState === WebSocket.OPEN) {
+          const timestamp = Math.floor(Date.now() / 1000);
+          this.wsRealtime.send(JSON.stringify({
+            method: 'GET_HISTORY',
+            params: { symbol: wsSymbol, interval: this.intervalAtual, to: timestamp, countback: 20 },
+          }));
+        }
+      })
+      .finally(() => { setTimeout(() => { this.sincronizandoManual = false; }, 3000); });
   }
 
   // ==========================================

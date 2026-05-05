@@ -96,6 +96,13 @@ export function ehMomentoDeExecutarBinary5min(): boolean {
   return MINUTOS_FIM_5MIN.includes(minutos) && segundos >= 54;
 }
 
+export function ehPreGate5min(): boolean {
+  const agora = new Date();
+  const minutos = agora.getMinutes();
+  const segundos = agora.getSeconds();
+  return MINUTOS_FIM_5MIN.includes(minutos) && segundos >= 50 && segundos < 54;
+}
+
 export function ehMomentoDeGale5min(minutoAlvo: number): boolean {
   const agora = new Date();
   const minutos = agora.getMinutes();

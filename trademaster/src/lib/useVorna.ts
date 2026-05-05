@@ -48,6 +48,7 @@ import {
   proximoHorarioExecucao5min,
   ehMomentoDeExecutarBinary5min,
   ehMomentoDeGale5min,
+  ehPreGate5min,
   obterInicioMinuto5min,
   obterFimMinuto5min,
 } from './motor-quadrantes-5min';
@@ -921,11 +922,30 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           if (tempoDecorrido > tempoLimite) {
             console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s sem resultado). Limpando.`);
             setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
+            setHistoricoQuadrantes5min(prev => {
+              const copia = [...prev];
+              if (copia.length > 0 && copia[copia.length - 1].resultado === null) {
+                copia[copia.length - 1] = { ...copia[copia.length - 1], resultado: 'derrota' };
+              }
+              return copia;
+            });
           } else {
             // O robô aguardará a resposta OFICIAL da corretora no polling otimizado de alta frequência.
             return;
           }
         }
+        // Pre-gate (50-53s): verificar velas e acionar sincronização se necessário
+        if (ehPreGate5min()) {
+          const qProximo = obterQuadranteAtual5min(minutos);
+          const velasCheck = servicoVelas.obterVelasDoQuadrante5min(qProximo, agora);
+          if (velasCheck.length === 0) {
+            console.log(`[Q5min] Pre-gate Q${qProximo}: sem velas, solicitando sincronização...`);
+            servicoVelas.sincronizarCandlesImediato();
+          }
+          preAquecerConexao();
+          return;
+        }
+
         const gale = gale5minRef.current;
         const devEntrar = ehMomentoDeExecutarBinary5min();
 
