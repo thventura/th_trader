@@ -231,6 +231,7 @@ export default function Admin() {
   const [enrollRole, setEnrollRole] = React.useState<'admin' | 'user'>('user');
   const [enrollDias, setEnrollDias] = React.useState<string>('30');
   const [enrollDataInicio, setEnrollDataInicio] = React.useState(new Date().toISOString().split('T')[0]);
+  const [enrollTier, setEnrollTier] = React.useState<'gratuito' | 'premium'>('gratuito');
   const [enrollVorna, setEnrollVorna] = React.useState(false);
   const [enrollPlanilha, setEnrollPlanilha] = React.useState(false);
   const [enrollTodosModulos, setEnrollTodosModulos] = React.useState(true);
@@ -1263,6 +1264,7 @@ export default function Admin() {
         email: enrollEmail,
         password: enrollPassword,
         role: enrollRole,
+        tier: enrollTier,
         diasAcesso,
         dataInicio: enrollDataInicio,
         vornaAprovado: enrollVorna,
@@ -1275,6 +1277,7 @@ export default function Admin() {
       setEnrollSucesso(`Aluno ${enrollEmail} matriculado com sucesso! Acesso: ${expiracaoTexto}.`);
       setEnrollEmail('');
       setEnrollPassword('');
+      setEnrollTier('gratuito');
       setEnrollVorna(false);
       setEnrollPlanilha(false);
       setEnrollTodosModulos(true);
@@ -1346,19 +1349,34 @@ export default function Admin() {
                 />
               </label>
             </div>
-            <label className="block w-48">
-              <span className="text-xs font-medium text-slate-400 flex items-center gap-2 mb-1">
-                <Shield size={14} /> Papel no Sistema
-              </span>
-              <select
-                value={enrollRole}
-                onChange={e => setEnrollRole(e.target.value as 'admin' | 'user')}
-                className="w-full bg-slate-800 border-white/5 border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-apex-trader-primary text-sm"
-              >
-                <option value="user">Aluno Normal</option>
-                <option value="admin">Administrador</option>
-              </select>
-            </label>
+            <div className="flex gap-4">
+              <label className="block w-48">
+                <span className="text-xs font-medium text-slate-400 flex items-center gap-2 mb-1">
+                  <Shield size={14} /> Papel no Sistema
+                </span>
+                <select
+                  value={enrollRole}
+                  onChange={e => setEnrollRole(e.target.value as 'admin' | 'user')}
+                  className="w-full bg-slate-800 border-white/5 border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-apex-trader-primary text-sm"
+                >
+                  <option value="user">Aluno Normal</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </label>
+              <label className="block w-48">
+                <span className="text-xs font-medium text-slate-400 flex items-center gap-2 mb-1">
+                  <Shield size={14} /> Plano
+                </span>
+                <select
+                  value={enrollTier}
+                  onChange={e => setEnrollTier(e.target.value as 'gratuito' | 'premium')}
+                  className="w-full bg-slate-800 border-white/5 border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-apex-trader-primary text-sm"
+                >
+                  <option value="gratuito">Gratuito</option>
+                  <option value="premium">Prêmium</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           {/* Período de Acesso */}

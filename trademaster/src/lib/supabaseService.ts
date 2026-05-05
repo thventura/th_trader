@@ -205,6 +205,7 @@ export interface CriarAlunoManualInput {
     email: string;
     password: string;
     role: 'admin' | 'user';
+    tier: 'gratuito' | 'premium';
     diasAcesso: number | null; // null = vitalício
     dataInicio: string; // ISO date string
     vornaAprovado: boolean;
@@ -217,8 +218,8 @@ export async function criarAlunoManual(input: CriarAlunoManualInput): Promise<{ 
     const url = import.meta.env.VITE_SUPABASE_URL as string;
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-    // Use a separate client so the admin session is not touched
-    const tempClient = createClient(url, key);
+    // Use a separate client with persistSession:false so the admin session is not overwritten
+    const tempClient = createClient(url, key, { auth: { persistSession: false } });
     const { data: authData, error: authError } = await tempClient.auth.signUp({
         email: input.email,
         password: input.password,
@@ -241,7 +242,7 @@ export async function criarAlunoManual(input: CriarAlunoManualInput): Promise<{ 
         id: userId,
         email: input.email,
         role: input.role,
-        tier: 'gratuito',
+        tier: input.tier,
         aprovado_por_admin: true,
         banca_inicial: 0,
         banca_atual: 0,
