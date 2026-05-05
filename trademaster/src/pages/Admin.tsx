@@ -1369,7 +1369,13 @@ export default function Admin() {
                 </span>
                 <select
                   value={enrollTier}
-                  onChange={e => setEnrollTier(e.target.value as 'gratuito' | 'premium')}
+                  onChange={e => {
+                    const t = e.target.value as 'gratuito' | 'premium';
+                    setEnrollTier(t);
+                    if (t === 'premium') {
+                      setEnrollPlanilha(true);
+                    }
+                  }}
                   className="w-full bg-slate-800 border-white/5 border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-apex-trader-primary text-sm"
                 >
                   <option value="gratuito">Gratuito</option>
