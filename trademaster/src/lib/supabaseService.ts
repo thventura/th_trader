@@ -165,6 +165,8 @@ export async function updateProfile(userId: string, updates: Partial<ProfileRow>
 export async function getAllProfiles(): Promise<ProfileRow[]> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return [];
+    const caller = await getProfile(session.user.id);
+    if (caller?.role !== 'admin') return [];
     return comCache('allProfiles', 30_000, async () => {
         try {
             const { data, error } = await supabase
@@ -216,6 +218,12 @@ export interface CriarAlunoManualInput {
 }
 
 export async function criarAlunoManual(input: CriarAlunoManualInput): Promise<{ userId: string }> {
+    // Verificar que o caller é admin antes de qualquer operação
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Não autenticado');
+    const caller = await getProfile(session.user.id);
+    if (caller?.role !== 'admin') throw new Error('Acesso negado: apenas admins podem criar alunos');
+
     const { createClient } = await import('@supabase/supabase-js');
     const url = import.meta.env.VITE_SUPABASE_URL as string;
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -346,6 +354,8 @@ export async function deleteTodasOperacoesUsuario(userId: string) {
 export async function getTodasOperacoes(): Promise<(OperacaoRow & { profiles: { email: string | null, nome: string | null } })[]> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Não autenticado');
+    const caller = await getProfile(session.user.id);
+    if (caller?.role !== 'admin') throw new Error('Acesso negado');
     const { data, error } = await supabase
         .from('operacoes')
         .select('*, profiles:user_id(email, nome)')
