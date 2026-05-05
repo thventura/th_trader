@@ -247,6 +247,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const velasAtuaisRef = useRef<Vela[]>([]);
   // Timer de entrada pendente (agendada para virada de vela)
   const pendingEntryTimerRef = useRef<number | null>(null);
+  // Timestamp da última sincronização manual de velas (throttle 8s)
+  const ultimaSincVelasRef = useRef<number>(0);
 
   // Lógica do Preço
   const [analiseLP, setAnaliseLP] = useState<AnaliseLogicaPreco | null>(null);
@@ -914,6 +916,16 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         });
 
         if (modoVPS && vpsOnlineRef.current) return;
+
+        // Sincronização periódica: requisitar velas se quadrante não tem dados (max 1×/8s)
+        if (operacoesAbertasRef.current.length === 0 && velas5.length === 0) {
+          const agora8s = Date.now();
+          if (agora8s - ultimaSincVelasRef.current > 8000) {
+            ultimaSincVelasRef.current = agora8s;
+            servicoVelas.sincronizarCandlesImediato();
+          }
+        }
+
         // Limpar operação fantasma: se passou mais de (duracao + 60)s sem resultado, desbloqueia
         if (operacoesAbertasRef.current.length > 0) {
           const opFantasma = operacoesAbertasRef.current[0];
@@ -1281,44 +1293,47 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         let resultado: 'vitoria' | 'derrota' = 'derrota';
         let diferenca = -valorUsado;
 
-        const todasVelas = servicoVelas.obterTodasVelas();
-        const velaAtual = todasVelas[todasVelas.length - 1];
-
-        // ── Fast-Result: cor da vela de resultado vs direção da operação ──
-        // Blitz M1 liquida no fechamento da vela M1 — a cor é o resultado oficial.
-        // Para CavaloTroia (M2), compõe a vela de 2min a partir das 2 últimas M1.
-        const usaFastResult = velaAtual && (
+        // ── Resultado via Corretora (primário) ou Vela/Saldo (fallback) ──
+        const ehBlitz =
           automacao.config?.estrategia === 'Quadrantes5min' ||
           automacao.config?.estrategia === 'CavaloTroia' ||
-          automacao.config?.estrategia === 'Quadrantes'
-        );
+          automacao.config?.estrategia === 'Quadrantes';
 
-        if (usaFastResult) {
-          let aberturaRef = velaAtual.abertura;
-          let fechamentoRef = velaAtual.fechamento;
-          if (automacao.config?.estrategia === 'CavaloTroia' && todasVelas.length >= 2) {
-            aberturaRef = todasVelas[todasVelas.length - 2].abertura;
-          }
-          const subiu = fechamentoRef > aberturaRef;
-          const desceu = fechamentoRef < aberturaRef;
-          const direcao = opAtual.direcao;
-          if ((direcao === 'compra' && subiu) || (direcao === 'venda' && desceu)) {
-            resultado = 'vitoria';
-            diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
-          }
-          console.log(`[Fast-Result] ${automacao.config?.estrategia} dir=${direcao} open=${aberturaRef} close=${fechamentoRef} -> ${resultado.toUpperCase()}`);
+        if (ehBlitz) {
+          // Aguardar expiração real (checkAt dispara 1s antes; aguardar o restante)
+          const msParaExpiracao = Math.max(0, optionCandleStart + duracaoOp - Date.now());
+          if (msParaExpiracao > 0) await new Promise(r => setTimeout(r, msParaExpiracao));
 
-          // Verificação assíncrona via histórico real da corretora: corrige caso a liquidação
-          // difira da cor da vela (spread/tick exato de expiração). Aguarda 3s para o SDK processar.
-          setTimeout(async () => {
-            try {
-              const confirmacao = await obterResultadoOperacao(opId);
-              if (confirmacao && confirmacao.resultado !== resultado) {
-                console.warn(`[Broker-Correction] Op ${opId}: vela=${resultado.toUpperCase()} → corretora=${confirmacao.resultado.toUpperCase()} | PnL: ${confirmacao.pnl.toFixed(2)}`);
+          // Consultar resultado oficial da corretora (até 5 tentativas × 500ms = 2.5s máx)
+          let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
+          for (let tentativa = 0; tentativa < 5 && !brokerResult; tentativa++) {
+            brokerResult = await obterResultadoOperacao(opId);
+            if (!brokerResult) await new Promise(r => setTimeout(r, 500));
+          }
+
+          if (brokerResult) {
+            resultado = brokerResult.resultado;
+            diferenca = brokerResult.pnl;
+            console.log(`[Corretora-Result] ${automacao.config?.estrategia} -> ${resultado.toUpperCase()} | PnL: ${diferenca.toFixed(2)}`);
+          } else {
+            // Fallback: cor da vela (SDK indisponível ou posição não localizada)
+            const todasVelasF = servicoVelas.obterTodasVelas();
+            const velaResultado = todasVelasF[todasVelasF.length - 1];
+            if (velaResultado) {
+              let abRef = velaResultado.abertura;
+              let fcRef = velaResultado.fechamento;
+              if (automacao.config?.estrategia === 'CavaloTroia' && todasVelasF.length >= 2) {
+                abRef = todasVelasF[todasVelasF.length - 2].abertura;
               }
-            } catch { /* não crítico */ }
-            obterSaldoRapido().then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
-          }, 3500);
+              const direcao = opAtual.direcao;
+              if ((direcao === 'compra' && fcRef > abRef) || (direcao === 'venda' && fcRef < abRef)) {
+                resultado = 'vitoria';
+                diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
+              }
+              console.log(`[Vela-Fallback] dir=${direcao} open=${abRef} close=${fcRef} -> ${resultado.toUpperCase()}`);
+            }
+          }
+          obterSaldoRapido().then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
         } else {
           // Estratégias não-Blitz: comparação de saldo (FluxoVelas, LogicaDoPreco, ICE)
           if (tempoDecorrido < duracaoOp + 1200) return;

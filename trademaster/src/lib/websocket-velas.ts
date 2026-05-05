@@ -838,37 +838,44 @@ class ServicoVelas {
   }
 
   sincronizarCandlesImediato(): void {
-    if (this.sincronizandoManual || !this.activeId) return;
+    if (this.sincronizandoManual) return;
     this.sincronizandoManual = true;
     const size = parseInt(this.intervalAtual) * 60;
     const wsSymbol = this.symbolAtual;
-    const activeId = this.activeId;
 
-    obterVelasViaRelay(activeId, size, undefined, 20)
-      .then(rawPoll => {
-        if (rawPoll.length > 0) {
-          const velasFormatadas: Vela[] = rawPoll.map((c: any) => {
-            const ab = Number(c.open); const fc = Number(c.close);
-            return {
-              timestamp: Number(c.from), abertura: ab, maxima: Number(c.max),
-              minima: Number(c.min), fechamento: fc, volume: Number(c.volume) || 0,
-              cor: (fc >= ab ? 'alta' : 'baixa') as 'alta' | 'baixa',
-            };
-          });
-          this.mergeVelas(wsSymbol, velasFormatadas);
-          console.log(`[Velas] Sincronização pré-gate: ${velasFormatadas.length} velas atualizadas.`);
-        }
-      })
-      .catch(() => {
-        if (this.wsRealtime && this.wsRealtime.readyState === WebSocket.OPEN) {
-          const timestamp = Math.floor(Date.now() / 1000);
-          this.wsRealtime.send(JSON.stringify({
-            method: 'GET_HISTORY',
-            params: { symbol: wsSymbol, interval: this.intervalAtual, to: timestamp, countback: 20 },
-          }));
-        }
-      })
-      .finally(() => { setTimeout(() => { this.sincronizandoManual = false; }, 3000); });
+    const tentarNxos = () => {
+      if (this.wsRealtime && this.wsRealtime.readyState === WebSocket.OPEN) {
+        const timestamp = Math.floor(Date.now() / 1000);
+        this.wsRealtime.send(JSON.stringify({
+          method: 'GET_HISTORY',
+          params: { symbol: wsSymbol, interval: this.intervalAtual, to: timestamp, countback: 20 },
+        }));
+      }
+    };
+
+    if (this.activeId) {
+      const activeId = this.activeId;
+      obterVelasViaRelay(activeId, size, undefined, 20)
+        .then(rawPoll => {
+          if (rawPoll.length > 0) {
+            const velasFormatadas: Vela[] = rawPoll.map((c: any) => {
+              const ab = Number(c.open); const fc = Number(c.close);
+              return {
+                timestamp: Number(c.from), abertura: ab, maxima: Number(c.max),
+                minima: Number(c.min), fechamento: fc, volume: Number(c.volume) || 0,
+                cor: (fc >= ab ? 'alta' : 'baixa') as 'alta' | 'baixa',
+              };
+            });
+            this.mergeVelas(wsSymbol, velasFormatadas);
+            console.log(`[Velas] Sync pré-gate: ${velasFormatadas.length} velas via relay.`);
+          }
+        })
+        .catch(() => { tentarNxos(); })
+        .finally(() => { setTimeout(() => { this.sincronizandoManual = false; }, 3000); });
+    } else {
+      tentarNxos();
+      setTimeout(() => { this.sincronizandoManual = false; }, 3000);
+    }
   }
 
   // ==========================================
