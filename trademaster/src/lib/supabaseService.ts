@@ -238,7 +238,7 @@ export async function criarAlunoManual(input: CriarAlunoManualInput): Promise<{ 
         })()
         : null;
 
-    const { error: profileError } = await supabase.from('profiles').upsert({
+    const { error: profileError } = await tempClient.from('profiles').upsert({
         id: userId,
         email: input.email,
         role: input.role,
