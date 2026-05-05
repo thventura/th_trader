@@ -103,17 +103,6 @@ export default function BemVindo() {
             </p>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden border border-apex-trader-primary/20 shadow-[0_0_40px_rgba(59,130,246,0.08)]">
-            <div className="aspect-video">
-              <iframe
-                className="w-full h-full"
-                src="https://www.youtube.com/embed/__P1NzbCqww"
-                title={`Como Funciona a ${BRANDING.appName}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>
