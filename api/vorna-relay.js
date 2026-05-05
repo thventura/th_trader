@@ -221,7 +221,7 @@ module.exports = async function handler(req, res) {
 
   if (action === 'buy') {
     if (!ssidParam) return res.status(400).json({ error: 'ssid obrigatório' });
-    const { ticker, direcao, valor, duracao = 60, instrumento_tipo = 'blitz' } = req.body || {};
+    const { ticker, direcao, valor, duracao = 60, instrumento_tipo = 'blitz', tipo_conta = 'REAL' } = req.body || {};
     if (!ticker) return res.status(400).json({ error: 'ticker obrigatório' });
     if (!direcao) return res.status(400).json({ error: 'direcao obrigatória (compra/venda)' });
     if (!valor || Number(valor) <= 0) return res.status(400).json({ error: 'valor inválido' });
@@ -236,11 +236,13 @@ module.exports = async function handler(req, res) {
       const isOtc = /\(OTC\)$/i.test(ticker) || /-OTC$/i.test(ticker);
       const tickerBase = ticker.replace('/', '').replace(/\s*\(OTC\)$/i, '').replace(/-OTC$/i, '').toUpperCase();
 
-      // Saldo REAL (cacheado para eliminar await a cada buy)
+      // Saldo selecionado (REAL ou DEMO), cacheado para eliminar await a cada buy
       const balancesFacade = _cachedBalances || await sdk.balances();
       if (!_cachedBalances) _cachedBalances = balancesFacade;
-      const realBalance = balancesFacade.getBalances().find(b => b.type === 'real');
-      if (!realBalance) return res.status(400).json({ error: 'Saldo REAL não encontrado na conta' });
+      const targetBalanceType = tipo_conta === 'DEMO' ? 'demo' : 'real';
+      const selectedBalance = balancesFacade.getBalances().find(b => b.type === targetBalanceType);
+      if (!selectedBalance) return res.status(400).json({ error: `Saldo ${tipo_conta} não encontrado na conta` });
+      console.log(`[vorna-relay] buy usando conta ${tipo_conta} (balance type: ${targetBalanceType})`);
 
       // ── BINARY: API usa active.instruments() → getAvailableForBuyAt → facade.buy(instrument) ──
       if (instrumento_tipo === 'binary') {
@@ -285,7 +287,7 @@ module.exports = async function handler(req, res) {
           : (classes.BinaryOptionsDirection?.Put  ?? 'put');
 
         console.log(`[vorna-relay] binary buy: ${ticker} ${direcao} R$${valor} expiredAt=${instrument.expiredAt?.toISOString?.() ?? '?'} (${Math.round((instrument.expiredAt?.getTime?.() - nowMs) / 1000)}s)`);
-        const option = await facade.buy(instrument, dir, Number(valor), realBalance);
+        const option = await facade.buy(instrument, dir, Number(valor), selectedBalance);
         console.log(`[vorna-relay] binary buy OK: id=${option.id}`);
         return res.json({ id: String(option.id), ticker: active.ticker, direcao, valor: Number(valor) });
       }
@@ -329,7 +331,7 @@ module.exports = async function handler(req, res) {
           : (classes.DigitalOptionsDirection?.Put  ?? 'put');
 
         console.log(`[vorna-relay] digital buy: ${ticker} ${direcao} R$${valor}`);
-        const option = await facade.buySpotStrike(instrument, dir, Number(valor), realBalance);
+        const option = await facade.buySpotStrike(instrument, dir, Number(valor), selectedBalance);
         console.log(`[vorna-relay] digital buy OK: id=${option.id}`);
         return res.json({ id: String(option.id), ticker: underlying.name, direcao, valor: Number(valor) });
       }
@@ -366,7 +368,7 @@ module.exports = async function handler(req, res) {
           : (classes.BlitzOptionsDirection?.Put  ?? 'put');
 
         console.log(`[vorna-relay] blitz buy: ${ticker} ${direcao} R$${valor} exp=${expiracao}s OTC=${isOtc}`);
-        const option = await facade.buy(active, dir, expiracao, Number(valor), realBalance);
+        const option = await facade.buy(active, dir, expiracao, Number(valor), selectedBalance);
         console.log(`[vorna-relay] blitz buy OK: id=${option.id}`);
         return res.json({ id: String(option.id), ticker: active.ticker, direcao, valor: Number(valor) });
       }

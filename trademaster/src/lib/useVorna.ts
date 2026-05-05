@@ -578,7 +578,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[FluxoVelas] Entrada agendada para +${Math.round(msAteVelaFV)}ms (virada de vela)`);
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
-        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao, valor, 60, config.instrumento_tipo))
+        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao, valor, 60, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
           .then(async id => {
             console.log(`[FluxoVelas] Ordem enviada! ID: ${id}`);
             setOperacoesAbertas(prev => [...prev, {
@@ -673,7 +673,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const segundosDesdeInicio = totalSegundosNoHora % candleDuracao;
       const duracao = Math.max(5, candleDuracao - segundosDesdeInicio);
 
-      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo))
+      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
         .then(async id => {
           console.log(`[LogicaDoPreco] Ordem enviada! ID: ${id}`);
           setOperacoesAbertas(prev => [...prev, {
@@ -779,7 +779,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       console.log(`[ICE] >>> PADRÃO DETECTADO: ${analise.resumo}`);
 
-      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo))
+      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
         .then(async id => {
           console.log(`[ICE] Ordem enviada! ID: ${id}`);
           setOperacoesAbertas(prev => [...prev, {
@@ -881,7 +881,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
           const horaEnvio = new Date().toISOString();
 
-          comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo))
+          comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
             .then(async id => {
               setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvio, duracao, status: 'enviada' }]);
               try {
@@ -993,7 +993,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             const precoEntrada = todasVelas[todasVelas.length - 1]?.fechamento;
             const horaEnvioReal = new Date().toISOString();
             
-            comReconexao(() => executarOperacaoVorna(config.ativo, direcaoGale, valor, duracaoGale, config.instrumento_tipo))
+            comReconexao(() => executarOperacaoVorna(config.ativo, direcaoGale, valor, duracaoGale, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
               .then(async id => {
                 setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: direcaoGale, valor, hora_envio: horaEnvioReal, duracao: duracaoGale, status: 'enviada', preco_entrada: precoEntrada }]);
                 try {
@@ -1069,7 +1069,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           console.log(`[Q5min] Entrada agendada para +${Math.round(msAteVelaQ5)}ms (virada de vela)`);
           pendingEntryTimerRef.current = window.setTimeout(() => {
             pendingEntryTimerRef.current = null;
-            comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoExec, config.instrumento_tipo))
+            comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoExec, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
               .then(async id => {
                 setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analiseExec.direcao_operacao, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
                 try {
@@ -1200,7 +1200,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         console.log(`[Quadrante] Entrada agendada para +${Math.round(msAteVelaQ)}ms (virada de vela)`);
         pendingEntryTimerRef.current = window.setTimeout(() => {
           pendingEntryTimerRef.current = null;
-          comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoQ, config.instrumento_tipo))
+          comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoQ, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
             .then(async id => {
               const opAberta: OperacaoAberta = {
                 id,

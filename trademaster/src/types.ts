@@ -218,6 +218,8 @@ export interface ConfigAutomacao {
   duracao_expiracao?: number;
   // P6: número de sessões alvo por dia (cada TAKE = 1 sessão)
   sessoes_alvo_dia?: number;
+  // Conta onde as operações serão executadas
+  tipo_conta?: 'REAL' | 'DEMO';
 }
 
 export const AUTOMACAO_PLATAFORMA_KEY = 'trademaster_config_automacao_plataforma';

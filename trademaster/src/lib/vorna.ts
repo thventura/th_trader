@@ -785,7 +785,8 @@ export async function executarOperacaoVorna(
   direcao: 'compra' | 'venda',
   valor: number,
   duracao: number,
-  instrumento_tipo: 'blitz' | 'binary' | 'digital' = 'blitz'
+  instrumento_tipo: 'blitz' | 'binary' | 'digital' = 'blitz',
+  tipo_conta: 'REAL' | 'DEMO' = 'REAL'
 ): Promise<string> {
   // ── SDK local (disponível em dev sem proxy) ──────────────────────────────────
   if (_sdk) {
@@ -821,20 +822,25 @@ export async function executarOperacaoVorna(
     , active.expirationTimes[0] ?? duracao);
 
     const balancesFacade = await _sdk.balances();
-    const realBalance = balancesFacade.getBalances().find(b => b.type === BalanceType.Real);
-    if (!realBalance) throw new VornaErro('Saldo REAL não encontrado. Verifique sua conta.');
+    const targetBalanceType = tipo_conta === 'DEMO' ? BalanceType.Demo : BalanceType.Real;
+    const selectedBalance = balancesFacade.getBalances().find(b => b.type === targetBalanceType);
+    if (!selectedBalance) throw new VornaErro(`Saldo ${tipo_conta} não encontrado. Verifique sua conta.`);
 
     const direction = direcao === 'compra' ? BlitzOptionsDirection.Call : BlitzOptionsDirection.Put;
-    console.log(`[Vorna] Enviando operação: ${ativo} ${direcao.toUpperCase()} R$ ${valor} ${expiracaoDisponivel}s`);
-    const option = await blitz.buy(active, direction, expiracaoDisponivel, valor, realBalance);
+    console.log(`[Vorna] Enviando operação (${tipo_conta}): ${ativo} ${direcao.toUpperCase()} R$ ${valor} ${expiracaoDisponivel}s`);
+    const option = await blitz.buy(active, direction, expiracaoDisponivel, valor, selectedBalance);
     console.log(`[Vorna] Operação criada: id=${option.id}`);
 
     try {
-      const updatedReal = balancesFacade.getBalances().find(b => b.type === BalanceType.Real);
-      if (updatedReal) {
+      const updatedBalance = balancesFacade.getBalances().find(b => b.type === targetBalanceType);
+      if (updatedBalance) {
         const sessaoAtual = obterSessaoVorna();
         if (sessaoAtual?.perfil) {
-          sessaoAtual.perfil.saldo = updatedReal.amount;
+          if (tipo_conta === 'DEMO') {
+            sessaoAtual.perfil.saldo_demo = updatedBalance.amount;
+          } else {
+            sessaoAtual.perfil.saldo = updatedBalance.amount;
+          }
           sessaoAtual.ultima_atualizacao = new Date().toISOString();
           salvarSessaoVorna(sessaoAtual);
         }
@@ -857,7 +863,7 @@ export async function executarOperacaoVorna(
       signal: ctrl.signal,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'buy', ssid: sessao.ssid, ticker: ativo, direcao, valor, duracao, instrumento_tipo }),
+      body: JSON.stringify({ action: 'buy', ssid: sessao.ssid, ticker: ativo, direcao, valor, duracao, instrumento_tipo, tipo_conta }),
     });
   } catch (e) {
     clearTimeout(tid);
