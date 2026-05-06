@@ -932,7 +932,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const tempoLimite = ((opFantasma?.duracao ?? 60) + 60) * 1000;
           const tempoDecorrido = Date.now() - new Date(opFantasma?.hora_envio ?? 0).getTime();
           if (tempoDecorrido > tempoLimite) {
-            console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s sem resultado). Limpando.`);
+            console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s sem resultado). Limpando e aplicando LOSS de proteção.`);
             setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
             setHistoricoQuadrantes5min(prev => {
               const copia = [...prev];
@@ -941,6 +941,31 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               }
               return copia;
             });
+
+            // FIX: Aplicar LOSS para que o P6/Martingale avance de nível corretamente
+            const valorUsado = opFantasma?.valor || valorOperacaoAtual || config.valor_por_operacao || 0;
+            if (config.gerenciamento === 'P6') {
+               saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current - valorUsado);
+               const nivelAtual = cicloMartingaleRef.current;
+               const novoNivel = nivelAtual >= 5 ? 0 : nivelAtual + 1;
+               cicloMartingaleRef.current = novoNivel;
+               setCicloMartingale(novoNivel);
+            } else if (config.gerenciamento === 'Martingale' || config.gerenciamento === 'Soros') {
+               const { novo_ciclo } = calcularValorOperacao({
+                 estrategia: config.gerenciamento,
+                 valor_base: config.valor_por_operacao,
+                 resultado_anterior: 'derrota',
+                 valor_anterior: valorUsado,
+                 multiplicador_martingale: config.multiplicador_martingale,
+                 multiplicador_soros: config.multiplicador_soros,
+                 payout: config.payout,
+                 ciclo_martingale: cicloMartingaleRef.current,
+                 max_martingale: config.max_martingale,
+                 banca_atual: config.gerenciamento === 'P6' ? bancaInicioSessaoP6Ref.current : undefined,
+               });
+               cicloMartingaleRef.current = novo_ciclo;
+               setCicloMartingale(novo_ciclo);
+            }
           } else {
             // O robô aguardará a resposta OFICIAL da corretora no polling otimizado de alta frequência.
             return;
@@ -1025,7 +1050,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           }
 
           // Analisar o quadrante atual (seg 58-59: quase fechado — direção já definida)
-          const velasExec = servicoVelas.obterVelasDoQuadrante5min(quadranteExec, agora);
+          let velasExec = servicoVelas.obterVelasDoQuadrante5min(quadranteExec, agora);
+          if (velasExec.length === 0) {
+            const todasVelas = servicoVelas.obterTodasVelas();
+            if (todasVelas.length > 0) {
+              velasExec = [todasVelas[todasVelas.length - 1]];
+              console.log(`[Q5min] Sem velas no quadrante, usando última vela conhecida como fallback.`);
+            }
+          }
           console.log(`[Q5min] pré-entrada Q${quadranteExec}→${quadranteExec === 12 ? 1 : quadranteExec + 1} — ${velasExec.length} vela(s) — ${agora.toTimeString().slice(0,8)}`);
           const analiseExec = velasExec.length > 0 ? analisarQuadrante5min(velasExec) : null;
           if (!analiseExec || !analiseExec.operar) { console.log('[Q5min] sem análise, pulando'); return; }
