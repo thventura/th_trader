@@ -591,7 +591,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             }));
 
             try {
-              const saldoAposEnvio = await obterSaldoRapido();
+              const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
               // Blitz options: a entrada é debitada imediatamente ao abrir.
               // Para calcular o delta correto, precisamos do saldo PRÉ-entrada (antes do débito).
               saldoAnteriorRef.current = saldoAposEnvio + valor;
@@ -695,7 +695,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           }, ...prev].slice(0, 20));
 
           try {
-            const saldoAposEnvio = await obterSaldoRapido();
+            const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
             saldoAnteriorRef.current = saldoAposEnvio + valor;
           } catch {
             saldoAnteriorRef.current -= valor;
@@ -786,7 +786,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioReal, duracao, status: 'enviada', preco_entrada: precoEntrada
           }]);
           try {
-            const saldoAposEnvio = await obterSaldoRapido();
+            const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
             saldoAnteriorRef.current = saldoAposEnvio + valor;
           } catch {
             saldoAnteriorRef.current -= valor;
@@ -885,7 +885,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             .then(async id => {
               setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvio, duracao, status: 'enviada' }]);
               try {
-                const s = await obterSaldoRapido();
+                const s = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
                 saldoAnteriorRef.current = s + valor;
               } catch { saldoAnteriorRef.current -= valor; }
               setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
@@ -1022,7 +1022,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               .then(async id => {
                 setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: direcaoGale, valor, hora_envio: horaEnvioReal, duracao: duracaoGale, status: 'enviada', preco_entrada: precoEntrada }]);
                 try {
-                  const s = await obterSaldoRapido();
+                  const s = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
                   saldoAnteriorRef.current = s + valor;
                 } catch { saldoAnteriorRef.current -= valor; }
                 setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
@@ -1112,7 +1112,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               .then(async id => {
                 setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analiseExec.direcao_operacao, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
                 try {
-                  const s = await obterSaldoRapido();
+                  const s = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
                   saldoAnteriorRef.current = s + valor;
                 } catch { saldoAnteriorRef.current -= valor; }
                 setHistoricoQuadrantes5min(prev => [...prev, {
@@ -1292,7 +1292,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               try {
                 // Aguarda dedução do investimento ser refletida pelo servidor (Blitz debita imediato mas pode ter latência)
                 await new Promise(r => setTimeout(r, 400));
-                const saldoAposEnvio = await obterSaldoRapido();
+                const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
                 saldoAnteriorRef.current = saldoAposEnvio + valor;
               } catch {
                 saldoAnteriorRef.current -= valor;
@@ -1416,7 +1416,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               console.log(`[Vela-Fallback] ts=${resultCandleTs} dir=${direcao} open=${abRef} close=${fcRef} -> ${resultado.toUpperCase()}`);
             }
           }
-          obterSaldoRapido().then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
+          obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
         } else {
           // Estratégias não-Blitz: comparação de saldo (FluxoVelas, LogicaDoPreco, ICE)
           if (tempoDecorrido < duracaoOp + 1200) return;
@@ -1427,7 +1427,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           } catch {
             await new Promise(r => setTimeout(r, 5000));
           }
-          const saldoAtual = await obterSaldoRapido();
+          const saldoAtual = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL');
           if (saldoAnteriorRef.current === 0) {
             saldoAnteriorRef.current = saldoAtual;
             return;
@@ -2002,7 +2002,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
     const executarLocal = () => {
       salvarConfigAutomacao(config);
-      const saldoAtual = sessao?.perfil?.saldo || 0;
+      const saldoAtual = config.tipo_conta === 'DEMO'
+        ? (sessao?.perfil?.saldo_demo || 0)
+        : (sessao?.perfil?.saldo || 0);
       saldoAnteriorRef.current = saldoAtual;
       saldoP6Ref.current = saldoAtual;
       bancaInicioSessaoP6Ref.current = saldoAtual;

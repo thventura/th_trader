@@ -914,13 +914,14 @@ export async function verificarOperacoesAbertas(): Promise<{ abertas: number; op
 
 // ── Saldo Rápido via SDK ──
 
-export async function obterSaldoRapido(): Promise<number> {
+export async function obterSaldoRapido(tipo_conta: 'REAL' | 'DEMO' = 'REAL'): Promise<number> {
   let saldo = 0;
+  const targetBalanceType = tipo_conta === 'DEMO' ? BalanceType.Demo : BalanceType.Real;
 
   if (_sdk) {
     const balancesFacade = await _sdk.balances();
     const balances = balancesFacade.getBalances();
-    saldo = balances.find(b => b.type === BalanceType.Real)?.amount ?? 0;
+    saldo = balances.find(b => b.type === targetBalanceType)?.amount ?? 0;
   } else {
     // Relay fallback: usa getSaldo com ssid (SDK cacheado, sem HTTP login)
     const sessaoAtiva = obterSessaoVorna();
@@ -928,16 +929,20 @@ export async function obterSaldoRapido(): Promise<number> {
     const resp = await fetch('/api/vorna-relay', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'getSaldo', ssid: sessaoAtiva.ssid }),
+      body: JSON.stringify({ action: 'getSaldo', ssid: sessaoAtiva.ssid, tipo_conta }),
     });
     if (!resp.ok) throw new VornaErro(`Erro ao obter saldo: ${resp.status}`);
     const data = await resp.json();
-    saldo = data.saldoReal ?? 0;
+    saldo = tipo_conta === 'DEMO' ? (data.saldoDemo ?? 0) : (data.saldoReal ?? 0);
   }
 
   const sessaoAtual = obterSessaoVorna();
   if (sessaoAtual?.perfil) {
-    sessaoAtual.perfil.saldo = saldo;
+    if (tipo_conta === 'DEMO') {
+      sessaoAtual.perfil.saldo_demo = saldo;
+    } else {
+      sessaoAtual.perfil.saldo = saldo;
+    }
     sessaoAtual.ultima_atualizacao = new Date().toISOString();
     salvarSessaoVorna(sessaoAtual);
   }

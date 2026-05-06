@@ -389,7 +389,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ── getSaldo: retorna saldo real usando SDK cacheado (sem login HTTP) ─────────
+  // ── getSaldo: retorna saldo real e/ou demo usando SDK cacheado ───────────────
   if (action === 'getSaldo') {
     if (!ssidParam) return res.status(400).json({ error: 'ssid obrigatório' });
     try {
@@ -397,8 +397,10 @@ module.exports = async function handler(req, res) {
       if (!sdk) return res.status(503).json({ error: 'SDK indisponível' });
       const balFacade = _cachedBalances || await sdk.balances();
       if (!_cachedBalances) _cachedBalances = balFacade;
-      const real = balFacade.getBalances().find(b => b.type === 'real');
-      return res.json({ saldoReal: real?.amount ?? 0 });
+      const balances = balFacade.getBalances();
+      const real = balances.find(b => b.type === 'real');
+      const demo = balances.find(b => b.type === 'demo');
+      return res.json({ saldoReal: real?.amount ?? 0, saldoDemo: demo?.amount ?? 0 });
     } catch (err) {
       console.error('[vorna-relay] getSaldo erro:', err.message);
       return res.status(500).json({ error: err.message });
