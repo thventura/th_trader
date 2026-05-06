@@ -205,6 +205,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   // Banca fixada no início de cada sessão P6 — usada para calcular todas as 6 entradas
   // sem reajustar com a banca depletada pelas perdas anteriores da mesma sessão.
   const bancaInicioSessaoP6Ref = useRef(0);
+  // P6: perdas acumuladas na sessão atual (para calcular referência de saldo)
+  const perdasAcumuladasP6Ref = useRef<number>(0);
+  // P6: throttle da checagem de saldo (máx 1× a cada 5s)
+  const ultimaVerificacaoSaldoP6Ref = useRef<number>(0);
 
   const [historicoQuadrantes, setHistoricoQuadrantes] = useState<Quadrante[]>([]);
 
@@ -1367,19 +1371,49 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config?.valor_por_operacao || 0;
         let resultado: 'vitoria' | 'derrota' = 'derrota';
         let diferenca = -valorUsado;
+        let saldoAposResultadoP6: number | null = null;
 
-        // ── Resultado via Corretora (primário) ou Vela/Saldo (fallback) ──
+        // ── Detecção de resultado ──
+        const ehP6 = automacao.config?.gerenciamento === 'P6';
         const ehBlitz =
           automacao.config?.estrategia === 'Quadrantes5min' ||
           automacao.config?.estrategia === 'CavaloTroia' ||
           automacao.config?.estrategia === 'Quadrantes';
 
-        if (ehBlitz) {
-          // Aguardar expiração real (checkAt dispara 1s antes; aguardar o restante)
+        if (ehP6) {
+          // P6: comparação de saldo com paciência de 2 minutos
+          if (tempoDecorrido < duracaoOp + 1200) return;
+          if (Date.now() - ultimaVerificacaoSaldoP6Ref.current < 5000) return;
+          ultimaVerificacaoSaldoP6Ref.current = Date.now();
+
+          const saldoAtualP6 = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
+          if (saldoAtualP6 === null) return;
+
+          // referenciaP6 = banca_sessão - perdas_anteriores - valor_investido_agora
+          // = saldo esperado se esta op for LOSS (payout não foi creditado)
+          const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
+          const diffP6 = saldoAtualP6 - referenciaP6;
+
+          if (diffP6 > valorUsado * 0.3) {
+            resultado = 'vitoria';
+            diferenca = diffP6 - valorUsado;
+            saldoAposResultadoP6 = saldoAtualP6;
+            saldoAnteriorRef.current = saldoAtualP6;
+            console.log(`[P6-Saldo] WIN | saldo=${saldoAtualP6.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
+          } else if (tempoDecorrido < duracaoOp + 120000) {
+            return;
+          } else {
+            resultado = 'derrota';
+            diferenca = -valorUsado;
+            saldoAposResultadoP6 = saldoAtualP6;
+            saldoAnteriorRef.current = saldoAtualP6;
+            console.log(`[P6-Saldo] LOSS (timeout 2min) | saldo=${saldoAtualP6.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
+          }
+        } else if (ehBlitz) {
+          // Não-P6 Blitz: polling oficial da corretora
           const msParaExpiracao = Math.max(0, optionCandleStart + duracaoOp - Date.now());
           if (msParaExpiracao > 0) await new Promise(r => setTimeout(r, msParaExpiracao));
 
-          // Consultar resultado oficial da corretora (até 10 tentativas × 500ms = 5s máx)
           let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
           for (let tentativa = 0; tentativa < 10 && !brokerResult; tentativa++) {
             brokerResult = await obterResultadoOperacao(opId);
@@ -1391,8 +1425,6 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             diferenca = brokerResult.pnl;
             console.log(`[Corretora-Result] ${automacao.config?.estrategia} -> ${resultado.toUpperCase()} | PnL: ${diferenca.toFixed(2)}`);
           } else {
-            // Fallback: vela que FECHOU no vencimento (não a vela atual em formação)
-            // optionCandleStart/1000 = timestamp (s) da vela M1 que expirou a opção
             const todasVelasF = servicoVelas.obterTodasVelas();
             const resultCandleTs = optionCandleStart / 1000;
             const velaResultado =
@@ -1418,7 +1450,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           }
           obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
         } else {
-          // Estratégias não-Blitz: comparação de saldo (FluxoVelas, LogicaDoPreco, ICE)
+          // Não-Blitz, não-P6: comparação de saldo (FluxoVelas, LogicaDoPreco, ICE)
           if (tempoDecorrido < duracaoOp + 1200) return;
           try {
             const { abertas } = await verificarOperacoesAbertas();
@@ -1477,17 +1509,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config.valor_por_operacao;
           valorAnteriorRef.current = valorUsado;
 
-          // Atualiza saldo P6 com o resultado desta operação
-          saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current + diferenca);
-
-          // P6: avança o nível de proteção diretamente — não chama calcularValorOperacao
-          // para evitar double-increment (o tick já usa o nível atual corretamente)
           if (automacao.config.gerenciamento === 'P6') {
             const nivelAtual = cicloMartingaleRef.current;
             if (resultado === 'vitoria') {
-              // Nova sessão: fixa a banca atual como referência para calcular as próximas 6 entradas
-              bancaInicioSessaoP6Ref.current = saldoP6Ref.current;
-              cicloMartingaleRef.current = 0; // atualiza ref diretamente, sem esperar re-render
+              const novaBanca = saldoAposResultadoP6 ?? saldoP6Ref.current;
+              bancaInicioSessaoP6Ref.current = novaBanca;
+              saldoP6Ref.current = novaBanca;
+              perdasAcumuladasP6Ref.current = 0;
+              cicloMartingaleRef.current = 0;
               setCicloMartingale(0);
               setSessoesConcluidasHoje(prev => {
                 const novas = prev + 1;
@@ -1498,10 +1527,21 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 return novas;
               });
             } else {
-              // LOSS: avança para próxima proteção; após 6ª perda reinicia
-              const novoNivel = nivelAtual >= 5 ? 0 : nivelAtual + 1;
-              cicloMartingaleRef.current = novoNivel; // atualiza ref diretamente
-              setCicloMartingale(novoNivel);
+              perdasAcumuladasP6Ref.current += valorUsado;
+              if (nivelAtual >= 5) {
+                // Sessão queimada — reinicia com saldo real
+                const saldoRestante = saldoAposResultadoP6 ?? saldoP6Ref.current;
+                bancaInicioSessaoP6Ref.current = saldoRestante;
+                saldoP6Ref.current = saldoRestante;
+                perdasAcumuladasP6Ref.current = 0;
+                cicloMartingaleRef.current = 0;
+                setCicloMartingale(0);
+              } else {
+                const novoNivel = nivelAtual + 1;
+                cicloMartingaleRef.current = novoNivel;
+                setCicloMartingale(novoNivel);
+                saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current + diferenca);
+              }
             }
           } else {
             const { valor: proximoValor, novo_ciclo } = calcularValorOperacao({
@@ -2008,6 +2048,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       saldoAnteriorRef.current = saldoAtual;
       saldoP6Ref.current = saldoAtual;
       bancaInicioSessaoP6Ref.current = saldoAtual;
+      perdasAcumuladasP6Ref.current = 0;
+      ultimaVerificacaoSaldoP6Ref.current = 0;
       resultadoAnteriorRef.current = null;
       valorAnteriorRef.current = config.valor_por_operacao;
       ultimoQuadranteExecutado.current = '';
