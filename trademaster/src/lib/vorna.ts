@@ -856,7 +856,7 @@ export async function executarOperacaoVorna(
 
   console.log(`[Vorna] Enviando operação via relay: ${ativo} ${direcao.toUpperCase()} R$ ${valor} ${duracao}s`);
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 8000);
+  const tid = setTimeout(() => ctrl.abort(), 15000);
   let resp: Response;
   try {
     resp = await fetch('/api/vorna-relay', {
@@ -867,7 +867,7 @@ export async function executarOperacaoVorna(
     });
   } catch (e) {
     clearTimeout(tid);
-    if ((e as Error).name === 'AbortError') throw new VornaErro('Timeout ao enviar operação (8s). Verifique a conexão com o relay.');
+    if ((e as Error).name === 'AbortError') throw new VornaErro('Timeout ao enviar operação (15s). Verifique a conexão com o relay.');
     throw e;
   }
   clearTimeout(tid);

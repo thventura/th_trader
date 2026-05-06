@@ -1094,9 +1094,39 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 }]);
                 setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
               })
-              .catch(err => {
-                console.error('[Q5min] Erro ao executar:', err);
+              .catch(async err => {
+                console.error('[Q5min] Erro ao executar operação:', (err as Error)?.message ?? err);
                 ultimoExecutado5min.current = '';
+                try {
+                  await new Promise(r => setTimeout(r, 2000));
+                  const { operacoes: posAbertasBroker } = await verificarOperacoesAbertas();
+                  const idsConhecidos = operacoesAbertasRef.current.map(op => String(op.id));
+                  const novaPos = posAbertasBroker.find(op => op.id && !idsConhecidos.includes(op.id));
+                  if (novaPos) {
+                    console.log(`[Q5min] Trade recuperado após erro de rede: id=${novaPos.id}`);
+                    setOperacoesAbertas(prev => [...prev, {
+                      id: novaPos.id,
+                      ativo: config.ativo,
+                      direcao: analiseExec.direcao_operacao,
+                      valor,
+                      hora_envio: horaEnvioReal,
+                      duracao: duracaoExec,
+                      status: 'enviada',
+                      preco_entrada: precoEntrada,
+                    }]);
+                    setHistoricoQuadrantes5min(prev => [...prev, {
+                      numero: quadranteExec,
+                      inicio_minuto: obterInicioMinuto5min(quadranteExec),
+                      fim_minuto: obterFimMinuto5min(quadranteExec),
+                      velas: velasExec,
+                      analise: analiseExec,
+                      resultado: null,
+                      gale_nivel: 0,
+                    }]);
+                  }
+                } catch (recoveryErr) {
+                  console.warn('[Q5min] Recovery check falhou:', (recoveryErr as Error)?.message);
+                }
               });
           }, msAteVelaQ5);
         }
