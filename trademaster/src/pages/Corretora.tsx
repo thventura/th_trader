@@ -1597,7 +1597,7 @@ function SecaoQuadrantes({
           </div>
           <div className="grid grid-cols-6 gap-2">
             {[1, 2, 3, 4, 5, 6].map(q => {
-              const hist = historicoQuadrantes.find(h => h.numero === q);
+              const hist = [...historicoQuadrantes].reverse().find(h => h.numero === q);
               const ehAtual = quadranteAtual?.numero === q;
 
               const win = hist?.resultado === 'vitoria';
@@ -1910,7 +1910,7 @@ function SecaoQuadrantes5min({
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Quadrantes da Hora (5min)</p>
           <div className="grid grid-cols-6 gap-1.5">
             {Array.from({ length: 12 }, (_, i) => i + 1).map(q => {
-              const hist = historicoQuadrantes.find(h => h.numero === q);
+              const hist = [...historicoQuadrantes].reverse().find(h => h.numero === q);
               const ehAtual = quadranteAtual?.numero === q;
               const win = hist?.resultado === 'vitoria';
               const loss = hist?.resultado === 'derrota';

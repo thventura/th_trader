@@ -944,7 +944,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opFantasma.id));
             return;
           }
-          const tempoLimite = ((opFantasma?.duracao ?? 60) + 60) * 1000;
+          const tempoLimite = ((opFantasma?.duracao ?? 60) + 90) * 1000;
           const tempoDecorrido = Date.now() - new Date(opFantasma?.hora_envio ?? 0).getTime();
           if (tempoDecorrido > tempoLimite) {
             console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s sem resultado). Limpando e aplicando LOSS de proteção.`);
@@ -1376,9 +1376,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const duracaoOp = (opAtual.duracao ?? 60) * 1000;
         const tempoDecorrido = Date.now() - enviada;
 
-        // Verificar 1s antes do fechamento da vela de resultado (candle alinhado ao múltiplo de 60s)
+        // Alinhar ao minuto (mantido para path Blitz que usa optionCandleStart internamente)
         const optionCandleStart = Math.ceil(enviada / 60000) * 60000;
-        const checkAt = optionCandleStart + duracaoOp - 1000;
+        // Expiração real: baseada no momento de envio (não na virada do candle)
+        const expiracaoReal = enviada + duracaoOp;
+        // Começar a verificar 2s antes da expiração real
+        const checkAt = expiracaoReal - 2000;
         if (Date.now() < checkAt) return;
 
         const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config?.valor_por_operacao || 0;
@@ -1405,8 +1408,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
           const diffP6 = saldoAtual - referenciaP6;
 
-          const expiracaoTs = optionCandleStart + duracaoOp;
-          const msAposExpiracao = Date.now() - expiracaoTs;
+          const msAposExpiracao = Date.now() - expiracaoReal;
 
           if (diffP6 > valorUsado * 0.3) {
             // Saldo subiu mais que o valor da entrada → payout creditado → WIN
