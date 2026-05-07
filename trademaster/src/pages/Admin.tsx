@@ -44,7 +44,8 @@ import {
 import { cn } from '../lib/utils';
 import { servicoVelas } from '../lib/websocket-velas';
 import { analisarQuadrante } from '../lib/motor-quadrantes';
-import { obterAtivosDisponiveis, obterSessaoVorna } from '../lib/vorna';
+import { obterAtivosDisponiveis, obterSessaoVorna, obterVelasViaRelay } from '../lib/vorna';
+import MetricsGestaoP6 from './MetricsGestaoP6';
 import { Comentario, Questao, ConfigProva, EstrategiaAnalise, Gerenciamento, ConfigAutomacaoPlataforma, AUTOMACAO_PLATAFORMA_KEY, CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT, ManutencaoConfig } from '../types';
 import MetricsFluxoVelasContent from './MetricsFluxoVelas';
 import MetricsLogicaPrecoContent from './MetricsLogicaPreco';
@@ -83,7 +84,7 @@ import {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = React.useState<'overview' | 'enrollment' | 'settings' | 'comentarios' | 'prova' | 'notificacoes' | 'operacoes' | 'manipulacao' | 'metricas' | 'vps' | 'automacao' | 'manutencao'>('overview');
+  const [activeTab, setActiveTab] = React.useState<'overview' | 'enrollment' | 'settings' | 'comentarios' | 'prova' | 'notificacoes' | 'operacoes' | 'manipulacao' | 'metricas' | 'gestao-p6' | 'vps' | 'automacao' | 'manutencao'>('overview');
   const [vpsStatus, setVpsStatus] = React.useState<any[]>([]);
 
   // ── Manutenção ──
@@ -323,6 +324,18 @@ export default function Admin() {
   const [refreshCounter, setRefreshCounter] = React.useState(0);
   const [comparativoReady, setComparativoReady] = React.useState(0);
 
+  // Estado exclusivo para a aba Gestão P6
+  const [p6Ativo, setP6Ativo] = React.useState<string>('EUR/USD');
+  const [p6DataInicio, setP6DataInicio] = React.useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [p6DataFim, setP6DataFim] = React.useState<string>(
+    () => new Date().toISOString().slice(0, 10)
+  );
+  const [p6Velas, setP6Velas] = React.useState<any[]>([]);
+  const [p6Loading, setP6Loading] = React.useState(false);
+
   // Ativos disponíveis para seleção — carregados da Vorna, com fallback para lista padrão
   const ATIVOS_FALLBACK = [
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD', 'EUR/GBP', 'GBP/JPY', 'GBP/CHF',
@@ -477,6 +490,35 @@ export default function Admin() {
     };
   }, [backtestAtivo, activeTab, backtestAtivosSelecionados]);
 
+  // Carregar velas para aba Gestão P6
+  React.useEffect(() => {
+    if (activeTab !== 'gestao-p6') return;
+    const ativoInfo = ativosPadrao; // usa displayName para encontrar no SDK
+    const sessao = obterSessaoVorna();
+    if (!sessao?.conectado) return;
+    obterAtivosDisponiveis().then(ativos => {
+      const found = ativos.find(a => a.displayName === p6Ativo);
+      if (!found) return;
+      const dias = Math.max(1, Math.ceil(
+        (new Date(p6DataFim).getTime() - new Date(p6DataInicio).getTime()) / 86400000
+      ) + 1);
+      const count = Math.min(dias * 1440 + 80, 15000);
+      const toTs = Math.floor(new Date(p6DataFim + 'T23:59:59').getTime() / 1000);
+      setP6Loading(true);
+      obterVelasViaRelay(found.id, 60, toTs, count)
+        .then(raw => setP6Velas(raw.map(r => ({
+          timestamp: r.from,
+          abertura: r.open,
+          fechamento: r.close,
+          maxima: r.max,
+          minima: r.min,
+          volume: r.volume,
+          cor: r.close >= r.open ? 'alta' : 'baixa',
+        }))))
+        .catch(() => setP6Velas([]))
+        .finally(() => setP6Loading(false));
+    }).catch(() => {});
+  }, [activeTab, p6Ativo, p6DataInicio, p6DataFim]);
 
   const handleSubmitAviso = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2574,6 +2616,7 @@ export default function Admin() {
               { id: 'prova', icon: FileText, label: 'Prova/Quiz' },
               { id: 'notificacoes', icon: Bell, label: 'Avisos' },
               { id: 'metricas', icon: BarChart3, label: 'Métricas' },
+              { id: 'gestao-p6', icon: Shield, label: 'Gestão P6' },
               { id: 'vps', icon: Zap, label: 'VPS' },
               { id: 'automacao', icon: Activity, label: 'Automação' },
               { id: 'manutencao', icon: Wrench, label: 'Manutenção' },
@@ -3007,6 +3050,19 @@ export default function Admin() {
                   />
                 )}
               </div>
+            )}
+            {activeTab === 'gestao-p6' && (
+              <MetricsGestaoP6
+                backtestAtivo={p6Ativo}
+                setBacktestAtivo={setP6Ativo}
+                backtestDataInicio={p6DataInicio}
+                setBacktestDataInicio={setP6DataInicio}
+                backtestDataFim={p6DataFim}
+                setBacktestDataFim={setP6DataFim}
+                backtestVelas={p6Velas}
+                backtestLoading={p6Loading}
+                ativosPadrao={ativosPadrao}
+              />
             )}
           </div>
         </div>
