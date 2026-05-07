@@ -939,6 +939,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Limpar operação fantasma: se passou mais de (duracao + 60)s sem resultado, desbloqueia
         if (operacoesAbertasRef.current.length > 0) {
           const opFantasma = operacoesAbertasRef.current[0];
+          // Se o polling já processou esta op (e o ref ainda não atualizou), apenas limpa sem LOSS duplo
+          if (ultimaOpProcessadaIdRef.current === opFantasma.id) {
+            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opFantasma.id));
+            return;
+          }
           const tempoLimite = ((opFantasma?.duracao ?? 60) + 60) * 1000;
           const tempoDecorrido = Date.now() - new Date(opFantasma?.hora_envio ?? 0).getTime();
           if (tempoDecorrido > tempoLimite) {
@@ -2117,6 +2122,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         inicio: new Date().toISOString(),
       });
       setOperacoesAbertas([]);
+      // Reset síncrono: evita que a tick da nova sessão veja operações da sessão anterior
+      // (setOperacoesAbertas só atualiza o ref após 1 re-render; o reset direto elimina o lag)
+      operacoesAbertasRef.current = [];
+      processandoResultadoRef.current = false;
+      ultimaOpProcessadaIdRef.current = null;
     };
 
     // ── Modo VPS: delega ao servidor ─────────────────────────────────────────
