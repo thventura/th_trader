@@ -42,7 +42,7 @@ import { AppleActivityCard, type ActivityData } from '../components/ui/apple-act
 import { LaserFlow } from '../components/ui/laser-focus-crypto-hero-section';
 import { useVorna } from '../lib/useVorna';
 import { useData } from '../contexts/DataContext';
-import { obterConfigAutomacao } from '../lib/vorna';
+import { obterConfigAutomacao, obterVelasViaRelay } from '../lib/vorna';
 import type { ActiveInfo } from '../lib/vorna';
 
 import { formatCurrency, cn } from '../lib/utils';
@@ -56,6 +56,7 @@ import { classificarVela } from '../lib/motor-fluxo-velas';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import SecaoMetricasEstrategia from '../components/MetricasEstrategia';
+import MetricsGestaoP6 from './MetricsGestaoP6';
 import type { VornaCarteira, ConfigAutomacao, EstadoAutomacao, Quadrante, EstadoWebSocket, Vela, EstadoFluxoVelas, AnaliseFluxoVelas, AnaliseLogicaPreco, OperacaoLPDetalhada, AnaliseImpulsoCorrecaoEngolfo } from '../types';
 import { AUTOMACAO_PLATAFORMA_KEY, CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT, type ConfigAutomacaoPlataforma, type EstrategiaAnalise } from '../types';
 import type { OperacaoAberta } from '../lib/vorna';
@@ -2837,6 +2838,17 @@ function PainelCorretora({
   const [velasAberto, setVelasAberto] = useState(false);
   const { profile, operacoes: ops } = useData();
 
+  const [backtestAtivo, setBacktestAtivo] = useState<string>('EUR/USD');
+  const [backtestDataInicio, setBacktestDataInicio] = useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [backtestDataFim, setBacktestDataFim] = useState<string>(
+    () => new Date().toISOString().slice(0, 10)
+  );
+  const [backtestVelas, setBacktestVelas] = useState<any[]>([]);
+  const [backtestLoading, setBacktestLoading] = useState(false);
+
   const usuario = sessao.usuario;
   const carteiras = usuario?.carteiras || [];
   const pumaEmail = usuario?.email || '';
@@ -2872,6 +2884,29 @@ function PainelCorretora({
       setAtualizando(false);
     }
   };
+
+  useEffect(() => {
+    const ativo = ativosSDK.find(a => a.displayName === backtestAtivo);
+    if (!ativo) return;
+    const dias = Math.max(1, Math.ceil(
+      (new Date(backtestDataFim).getTime() - new Date(backtestDataInicio).getTime()) / 86400000
+    ) + 1);
+    const count = Math.min(dias * 1440 + 80, 15000);
+    const toTs = Math.floor(new Date(backtestDataFim + 'T23:59:59').getTime() / 1000);
+    setBacktestLoading(true);
+    obterVelasViaRelay(ativo.id, 60, toTs, count)
+      .then(raw => setBacktestVelas(raw.map(r => ({
+        timestamp: r.from,
+        abertura: r.open,
+        fechamento: r.close,
+        maxima: r.max,
+        minima: r.min,
+        volume: r.volume,
+        cor: r.close >= r.open ? 'alta' : 'baixa',
+      }))))
+      .catch(() => setBacktestVelas([]))
+      .finally(() => setBacktestLoading(false));
+  }, [backtestAtivo, backtestDataInicio, backtestDataFim, ativosSDK]);
 
   return (
     <div className="space-y-5">
@@ -2939,6 +2974,19 @@ function PainelCorretora({
 
       {/* Análise de Estratégias — backtest de velas históricas por estratégia */}
       <SecaoMetricasEstrategia ativosSDK={ativosSDK} />
+
+      {/* Backtest Gestão P6 */}
+      <MetricsGestaoP6
+        backtestAtivo={backtestAtivo}
+        setBacktestAtivo={setBacktestAtivo}
+        backtestDataInicio={backtestDataInicio}
+        setBacktestDataInicio={setBacktestDataInicio}
+        backtestDataFim={backtestDataFim}
+        setBacktestDataFim={setBacktestDataFim}
+        backtestVelas={backtestVelas}
+        backtestLoading={backtestLoading}
+        ativosPadrao={ativosSDK.map(a => a.displayName)}
+      />
 
       {/* Gráfico removido por solicitação - Performance e leveza prioritárias */}
 

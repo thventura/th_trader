@@ -1,4 +1,5 @@
 import type { Vela, AnaliseQuadrante, Gerenciamento } from '../types';
+import { calcularP6Entradas } from './motor-p6';
 
 // ── Quadrantes ──
 // Cada hora tem 6 quadrantes de 10 minutos (10 velas M1 cada)
@@ -149,22 +150,6 @@ export function analisarQuadrante(velas: Vela[], velasHistorico: Vela[] = []): A
     dupla_exposicao_detectada,
     explicacao,
   };
-}
-
-// ── Entradas P6 ──
-// Cada proteção recupera todas as perdas anteriores + 1% da banca como lucro alvo.
-// 6ª entrada = restante da banca (all-in).
-export function calcularP6Entradas(banca: number, payout: number): number[] {
-  const payoutDecimal = Math.max(0.01, payout) / 100;
-  const alvo = banca * 0.01;
-  const entradas: number[] = [];
-  for (let i = 0; i < 5; i++) {
-    const perdaAcumulada = entradas.reduce((s, v) => s + v, 0);
-    entradas.push(Math.max(0.01, parseFloat(((perdaAcumulada + alvo) / payoutDecimal).toFixed(2))));
-  }
-  const totalUsado = entradas.reduce((s, v) => s + v, 0);
-  entradas.push(Math.max(0.01, parseFloat((banca - totalUsado).toFixed(2))));
-  return entradas;
 }
 
 // ── Cálculo de Valor por Estratégia ──

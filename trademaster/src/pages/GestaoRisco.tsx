@@ -20,7 +20,7 @@ import {
 import { cn, formatCurrency } from '../lib/utils';
 import { useData } from '../contexts/DataContext';
 import { useVorna } from '../lib/useVorna';
-import { calcularP6Entradas } from '../lib/motor-quadrantes';
+import { calcularP6Entradas } from '../lib/motor-p6';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type TipoGestao = '2x1' | '4x2' | 'jc' | 'jcs' | 'p6';

@@ -37,11 +37,11 @@ import {
   obterQuadranteAtual,
   analisarQuadrante,
   calcularValorOperacao,
-  calcularP6Entradas,
   proximoHorarioExecucao,
   ehMomentoDeExecutar,
   formatarCountdown,
 } from './motor-quadrantes';
+import { calcularP6Entradas } from './motor-p6';
 import {
   obterQuadranteAtual5min,
   analisarQuadrante5min,

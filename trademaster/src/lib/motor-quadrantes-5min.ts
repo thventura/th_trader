@@ -19,13 +19,6 @@ export function obterFimMinuto5min(quadrante: number): number {
   return (quadrante - 1) * 5 + 4;
 }
 
-function ehDoji(vela: Vela): boolean {
-  const corpo = Math.abs(vela.fechamento - vela.abertura);
-  const sombra = vela.maxima - vela.minima;
-  if (sombra === 0) return corpo === 0;
-  return corpo / sombra < 0.1;
-}
-
 export function analisarQuadrante5min(velas: Vela[]): AnaliseQuadrante5min {
   if (velas.length === 0) {
     return {
@@ -41,21 +34,16 @@ export function analisarQuadrante5min(velas: Vela[]): AnaliseQuadrante5min {
 
   const total_alta = velas.filter(v => v.cor === 'alta').length;
   const total_baixa = velas.filter(v => v.cor === 'baixa').length;
-
   const ultimaVela = velas[velas.length - 1];
-  const dojiDetectado = ehDoji(ultimaVela) && velas.length >= 2;
-  const velaReferencia = dojiDetectado ? velas[velas.length - 2] : ultimaVela;
-
-  const ultima_vela_cor = velaReferencia.cor;
+  const ultima_vela_cor = ultimaVela.cor;
   const direcao_operacao: 'compra' | 'venda' = ultima_vela_cor === 'alta' ? 'compra' : 'venda';
 
   const concordam = ultima_vela_cor === 'alta' ? total_alta : total_baixa;
   const total = velas.length;
   const confianca = Math.round((concordam / total) * 100);
 
-  const refLabel = ultima_vela_cor === 'alta' ? 'VERDE' : 'VERMELHA';
-  const prefixo = dojiDetectado ? `Doji detectado — usando penúltima vela ${refLabel}` : `Última vela ${refLabel}`;
-  const explicacao = `${prefixo} → ${direcao_operacao.toUpperCase()}. ${total_alta} alta(s) vs ${total_baixa} baixa(s) (confiança ${confianca}%).`;
+  const ultimaVelaLabel = ultima_vela_cor === 'alta' ? 'VERDE' : 'VERMELHA';
+  const explicacao = `Última vela ${ultimaVelaLabel} → ${direcao_operacao.toUpperCase()}. ${total_alta} alta(s) vs ${total_baixa} baixa(s) no quadrante (confiança ${confianca}%).`;
 
   return {
     ultima_vela_cor,
