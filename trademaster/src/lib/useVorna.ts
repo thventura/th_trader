@@ -127,6 +127,9 @@ export interface UseVornaRetorno {
   cicloMartingale: number;
   valorOperacaoAtual: number;
   sessoesConcluidasHoje: number;
+  nivelP6: number;
+  bancaP6: number;
+  perdasAcumuladasP6: number;
   historicoQuadrantes: Quadrante[];
   // Quadrantes 5min
   quadrante5minAtual: Quadrante5min | null;
@@ -209,6 +212,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const perdasAcumuladasP6Ref = useRef<number>(0);
   // P6: throttle da checagem de saldo (máx 1× a cada 5s)
   const ultimaVerificacaoSaldoP6Ref = useRef<number>(0);
+  // P6: states para re-render da UI
+  const [bancaP6, setBancaP6] = useState<number>(0);
+  const [perdasAcumuladasP6, setPerdasAcumuladasP6] = useState<number>(0);
 
   const [historicoQuadrantes, setHistoricoQuadrantes] = useState<Quadrante[]>([]);
 
@@ -1516,6 +1522,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               perdasAcumuladasP6Ref.current = 0;
               cicloMartingaleRef.current = 0;
               setCicloMartingale(0);
+              setBancaP6(novaBanca);
+              setPerdasAcumuladasP6(0);
               setSessoesConcluidasHoje(prev => {
                 const novas = prev + 1;
                 const alvo = automacao.config!.sessoes_alvo_dia ?? 1;
@@ -1534,11 +1542,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 perdasAcumuladasP6Ref.current = 0;
                 cicloMartingaleRef.current = 0;
                 setCicloMartingale(0);
+                setBancaP6(saldoRestante);
+                setPerdasAcumuladasP6(0);
               } else {
                 const novoNivel = nivelAtual + 1;
                 cicloMartingaleRef.current = novoNivel;
                 setCicloMartingale(novoNivel);
                 saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current + diferenca);
+                setPerdasAcumuladasP6(perdasAcumuladasP6Ref.current);
               }
             }
           } else {
@@ -1560,7 +1571,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
           console.log(`[Vorna] Resultado: ${resultado} | Diferença: ${diferenca.toFixed(2)}`);
 
-          // Notificação
+          // Notificação de Operação Individual
           const ativoNotif = automacao.config.ativo;
           const direcaoNotif = opAtual.direcao || '';
           const tituloNotif = ehGaleProtegido
@@ -1586,7 +1597,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             console.warn('[Vorna] Erro ao exibir notificação:', notifErr);
           }
 
-          // Push remoto (fire-and-forget — não bloqueia o ciclo do gale)
+          // Push remoto
           if (supabaseUserId) {
             fetch('/api/send-push-user', {
               method: 'POST',
@@ -2048,6 +2059,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       bancaInicioSessaoP6Ref.current = saldoAtual;
       perdasAcumuladasP6Ref.current = 0;
       ultimaVerificacaoSaldoP6Ref.current = 0;
+      setBancaP6(saldoAtual);
+      setPerdasAcumuladasP6(0);
       resultadoAnteriorRef.current = null;
       valorAnteriorRef.current = config.valor_por_operacao;
       ultimoQuadranteExecutado.current = '';
@@ -2197,6 +2210,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     cicloMartingale,
     valorOperacaoAtual,
     sessoesConcluidasHoje,
+    nivelP6: cicloMartingale + 1,
+    bancaP6,
+    perdasAcumuladasP6,
     historicoQuadrantes,
     quadrante5minAtual,
     historicoQuadrantes5min,

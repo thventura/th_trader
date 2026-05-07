@@ -147,6 +147,9 @@ function PainelAutomacao({
   ativosSDK,
   afiliadoAprovado,
   sessoesConcluidasHoje,
+  nivelP6,
+  bancaP6,
+  perdasAcumuladasP6,
 }: {
   automacao: EstadoAutomacao;
   onIniciar: (config: ConfigAutomacao) => void;
@@ -159,6 +162,9 @@ function PainelAutomacao({
   ativosSDK: ActiveInfo[];
   afiliadoAprovado?: boolean;
   sessoesConcluidasHoje: number;
+  nivelP6: number;
+  bancaP6: number;
+  perdasAcumuladasP6: number;
 }) {
   const configPlataforma: ConfigAutomacaoPlataforma = React.useMemo(() => {
     try {
@@ -1023,6 +1029,57 @@ function PainelAutomacao({
                       style={{ width: `${barraProgresso}%` }}
                     />
                   </div>
+
+                  {/* Painel P6 Exclusivo */}
+                  {automacao.config?.gerenciamento === 'P6' && (
+                    <div className="mt-3 p-3 bg-violet-500/5 border border-violet-500/15 rounded-xl space-y-2">
+                      <p className="text-xs font-bold text-violet-400 uppercase tracking-wider">
+                        Gestão P6
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Nível de Proteção</p>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 6 }, (_, i) => (
+                              <span
+                                key={i}
+                                className={cn(
+                                  'w-4 h-4 rounded-full border transition-colors',
+                                  i < nivelP6 - 1
+                                    ? 'bg-red-500 border-red-500'
+                                    : i === nivelP6 - 1
+                                    ? 'bg-violet-400 border-violet-400'
+                                    : 'bg-transparent border-slate-600'
+                                )}
+                              />
+                            ))}
+                            <span className="text-xs text-slate-400 ml-1">{nivelP6}/6</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Sessões Hoje</p>
+                          <p className="text-sm font-bold text-white">
+                            {sessoesConcluidasHoje}
+                            <span className="text-slate-500 font-normal">
+                              /{automacao.config?.sessoes_alvo_dia ?? 1}
+                            </span>
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Banca P6</p>
+                          <p className="text-sm font-bold text-white">
+                            {formatCurrency(bancaP6)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Perdas Acumuladas</p>
+                          <p className="text-sm font-bold text-red-400">
+                            {formatCurrency(perdasAcumuladasP6)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -2737,6 +2794,9 @@ function PainelCorretora({
   modoVPS,
   vpsStatus,
   sessoesConcluidasHoje,
+  nivelP6,
+  bancaP6,
+  perdasAcumuladasP6,
 }: {
   sessao: NonNullable<ReturnType<typeof useVorna>['sessao']>;
   onDesconectar: () => void;
@@ -2769,6 +2829,9 @@ function PainelCorretora({
   modoVPS: boolean;
   vpsStatus: 'desconhecido' | 'online' | 'offline';
   sessoesConcluidasHoje: number;
+  nivelP6: number;
+  bancaP6: number;
+  perdasAcumuladasP6: number;
 }) {
   const [atualizando, setAtualizando] = useState(false);
   const [velasAberto, setVelasAberto] = useState(false);
@@ -2903,6 +2966,9 @@ function PainelCorretora({
         ativosSDK={ativosSDK}
         afiliadoAprovado={sessao.afiliadoAprovado}
         sessoesConcluidasHoje={sessoesConcluidasHoje}
+        nivelP6={nivelP6}
+        bancaP6={bancaP6}
+        perdasAcumuladasP6={perdasAcumuladasP6}
       />
 
       {/* Barra de diagnóstico — visível apenas durante automação ativa */}
@@ -3357,6 +3423,9 @@ export default function Corretora() {
     modoVPS,
     vpsStatus,
     sessoesConcluidasHoje,
+    nivelP6,
+    bancaP6,
+    perdasAcumuladasP6,
   } = useVorna(userId, profile);
 
   // Quando conectar com sucesso, libera o painel novamente
@@ -3413,6 +3482,9 @@ export default function Corretora() {
           modoVPS={modoVPS}
           vpsStatus={vpsStatus}
           sessoesConcluidasHoje={sessoesConcluidasHoje}
+          nivelP6={nivelP6}
+          bancaP6={bancaP6}
+          perdasAcumuladasP6={perdasAcumuladasP6}
         />
       </ErrorBoundary>
     );
