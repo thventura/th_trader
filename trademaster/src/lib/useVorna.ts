@@ -1405,6 +1405,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
           const diffP6 = saldoAtual - referenciaP6;
 
+          const expiracaoTs = optionCandleStart + duracaoOp;
+          const msAposExpiracao = Date.now() - expiracaoTs;
+
           if (diffP6 > valorUsado * 0.3) {
             // Saldo subiu mais que o valor da entrada → payout creditado → WIN
             resultado = 'vitoria';
@@ -1412,8 +1415,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             saldoAnteriorRef.current = saldoAtual;
             saldoAposResultadoP6 = saldoAtual;
             console.log(`[P6-Saldo] WIN | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
-          } else if (tempoDecorrido < duracaoOp + 20000) {
-            // Dentro dos 20 segundos → continua aguardando o saldo atualizar
+          } else if (msAposExpiracao < 20000) {
+            // Ainda dentro dos 20s após a expiração real → aguarda saldo atualizar
             return;
           } else {
             // Timeout de 20 segundos após expiração → LOSS confirmado
