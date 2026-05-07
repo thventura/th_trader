@@ -541,7 +541,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const opF = operacoesAbertasRef.current[0];
         if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
           console.warn('[FluxoVelas] Operação fantasma detectada. Limpando.');
-          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
+          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opF.id));
         }
         return;
       }
@@ -746,7 +746,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const opF = operacoesAbertasRef.current[0];
         if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
           console.warn('[ICE] Operação fantasma detectada. Limpando.');
-          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
+          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opF.id));
         }
         return;
       }
@@ -845,7 +845,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const opF = operacoesAbertasRef.current[0];
           if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
             console.warn('[CavaloTroia] Operação fantasma detectada. Limpando.');
-            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
+            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opF.id));
           }
           return;
         }
@@ -943,7 +943,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const tempoDecorrido = Date.now() - new Date(opFantasma?.hora_envio ?? 0).getTime();
           if (tempoDecorrido > tempoLimite) {
             console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s sem resultado). Limpando e aplicando LOSS de proteção.`);
-            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
+            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opFantasma.id));
             setHistoricoQuadrantes5min(prev => {
               const copia = [...prev];
               if (copia.length > 0 && copia[copia.length - 1].resultado === null) {
@@ -960,6 +960,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                const novoNivel = nivelAtual >= 5 ? 0 : nivelAtual + 1;
                cicloMartingaleRef.current = novoNivel;
                setCicloMartingale(novoNivel);
+               perdasAcumuladasP6Ref.current += valorUsado;
+               setPerdasAcumuladasP6(perdasAcumuladasP6Ref.current);
             } else if (config.gerenciamento === 'Martingale' || config.gerenciamento === 'Soros') {
                const { novo_ciclo } = calcularValorOperacao({
                  estrategia: config.gerenciamento,
@@ -1200,7 +1202,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const opF = operacoesAbertasRef.current[0];
           if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
             console.warn('[Quadrante] Operação fantasma detectada. Limpando.');
-            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
+            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opF.id));
           }
           return;
         }
@@ -1410,11 +1412,21 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             return;
           } else {
             // Timeout de 20 segundos após expiração → LOSS confirmado
-            resultado = 'derrota';
-            diferenca = -valorUsado;
-            saldoAnteriorRef.current = saldoAtual;
-            saldoAposResultadoP6 = saldoAtual;
-            console.log(`[P6-Saldo] LOSS (timeout 20s) | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
+            // Fallback: tentar buscar o resultado oficial na corretora caso o saldo tenha apenas demorado a atualizar
+            const brokerResult = await obterResultadoOperacao(opId).catch(() => null);
+            if (brokerResult && brokerResult.resultado === 'vitoria') {
+              resultado = 'vitoria';
+              diferenca = brokerResult.pnl;
+              saldoAnteriorRef.current = saldoAtual;
+              saldoAposResultadoP6 = saldoAtual;
+              console.log(`[P6-Fallback] WIN recuperado da corretora após atraso do saldo!`);
+            } else {
+              resultado = 'derrota';
+              diferenca = -valorUsado;
+              saldoAnteriorRef.current = saldoAtual;
+              saldoAposResultadoP6 = saldoAtual;
+              console.log(`[P6-Saldo] LOSS (timeout 20s) | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
+            }
           }
         } else if (ehBlitz) {
           // Não-P6 Blitz: polling oficial da corretora
@@ -1484,6 +1496,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         }
 
         if (automacao.config) {
+          // Evitar processamento duplicado caso o limpador fantasma já tenha removido esta operação durante o await
+          const opAindaExiste = operacoesAbertasRef.current.some(o => o.id === opId);
+          if (!opAindaExiste) {
+            console.warn(`[Polling] Operação ${opId} foi removida pelo limpador fantasma. Abortando processamento duplicado.`);
+            processandoResultadoRef.current = false;
+            return;
+          }
+
           resultadoAnteriorRef.current = resultado;
 
           // Agendar gale Q5min IMEDIATAMENTE antes de qualquer await (timing crítico)
@@ -1511,7 +1531,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             && gale5minRef.current.ativo;
           // Liberar operação imediatamente para o tick checar o gale
           ultimaOpProcessadaIdRef.current = opId;
-          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.slice(1));
+          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opId));
 
           const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config.valor_por_operacao;
           valorAnteriorRef.current = valorUsado;
