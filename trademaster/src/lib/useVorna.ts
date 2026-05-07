@@ -1381,33 +1381,31 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           automacao.config?.estrategia === 'Quadrantes';
 
         if (ehP6) {
-          // P6: comparação de saldo com paciência de 2 minutos
-          if (tempoDecorrido < duracaoOp + 1200) return;
+          // P6: comparação de saldo — throttle 5s, tolerância 20s após expiração
           if (Date.now() - ultimaVerificacaoSaldoP6Ref.current < 5000) return;
           ultimaVerificacaoSaldoP6Ref.current = Date.now();
 
           const saldoAtualP6 = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
           if (saldoAtualP6 === null) return;
 
-          // referenciaP6 = banca_sessão - perdas_anteriores - valor_investido_agora
-          // = saldo esperado se esta op for LOSS (payout não foi creditado)
+          // Âncora fixa da sessão: saldo esperado se esta op for LOSS
           const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
           const diffP6 = saldoAtualP6 - referenciaP6;
 
           if (diffP6 > valorUsado * 0.3) {
             resultado = 'vitoria';
-            diferenca = diffP6 - valorUsado;
+            diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
             saldoAposResultadoP6 = saldoAtualP6;
             saldoAnteriorRef.current = saldoAtualP6;
             console.log(`[P6-Saldo] WIN | saldo=${saldoAtualP6.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
-          } else if (tempoDecorrido < duracaoOp + 120000) {
+          } else if (tempoDecorrido < duracaoOp + 20000) {
             return;
           } else {
             resultado = 'derrota';
             diferenca = -valorUsado;
             saldoAposResultadoP6 = saldoAtualP6;
             saldoAnteriorRef.current = saldoAtualP6;
-            console.log(`[P6-Saldo] LOSS (timeout 2min) | saldo=${saldoAtualP6.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
+            console.log(`[P6-Saldo] LOSS (timeout 20s) | saldo=${saldoAtualP6.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
           }
         } else if (ehBlitz) {
           // Não-P6 Blitz: polling oficial da corretora
