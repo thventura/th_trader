@@ -217,6 +217,52 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: err.message });
     }
   }
+
+  if (action === 'getResult') {
+    if (!ssidParam) return res.status(400).json({ error: 'ssid obrigatório' });
+    const { opId } = req.body || {};
+    if (!opId) return res.status(400).json({ error: 'opId obrigatório' });
+    try {
+      const sdk = await getOrCreateSdk(ssidParam);
+      if (!sdk) return res.status(503).json({ error: 'SDK indisponível no servidor' });
+      const positionsFacade = await sdk.positions();
+
+      const matchId = (p) =>
+        String(p.id || '') === opId ||
+        String(p.externalId || '') === opId ||
+        String(p.internalId || '') === opId;
+
+      const extrairResultado = (p) => {
+        const pnl = (p.pnlNet ?? p.pnl ?? 0);
+        const invest = (p.invest ?? p.price ?? 0);
+        return { resultado: pnl > 0 ? 'vitoria' : 'derrota', pnl: pnl > 0 ? pnl : -invest };
+      };
+
+      const allPositions = positionsFacade.getAllPositions();
+      const posLive = allPositions.find(p => {
+        const status = (p.status || '').toLowerCase();
+        const fechada = status !== 'open' && status !== '' && status !== 'pending';
+        return matchId(p) && fechada;
+      });
+      
+      if (posLive) {
+         return res.json(extrairResultado(posLive));
+      }
+
+      const history = positionsFacade.getPositionsHistory();
+      await history.fetchPrevPage();
+      const historicPositions = history.getPositions();
+      const posHist = historicPositions.find(matchId);
+      if (posHist) {
+         return res.json(extrairResultado(posHist));
+      }
+      return res.status(404).json({ error: 'Operação não encontrada no histórico' });
+    } catch (err) {
+      console.error('[vorna-relay] getResult erro:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   if (action === 'buy') {

@@ -1421,21 +1421,56 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             // Ainda dentro dos 20s após a expiração real → aguarda saldo atualizar
             return;
           } else {
-            // Timeout de 20 segundos após expiração → LOSS confirmado
-            // Fallback: tentar buscar o resultado oficial na corretora caso o saldo tenha apenas demorado a atualizar
+            // Timeout de 20 segundos após expiração → LOSS confirmado ou atraso do saldo
+            // Fallback 1: tentar buscar o resultado oficial na corretora caso o saldo tenha apenas demorado a atualizar
             const brokerResult = await obterResultadoOperacao(opId).catch(() => null);
-            if (brokerResult && brokerResult.resultado === 'vitoria') {
-              resultado = 'vitoria';
-              diferenca = brokerResult.pnl;
+            if (brokerResult) {
+              if (brokerResult.resultado === 'vitoria') {
+                resultado = 'vitoria';
+                diferenca = brokerResult.pnl;
+                console.log(`[P6-Fallback] WIN recuperado da corretora após atraso do saldo!`);
+              } else {
+                resultado = 'derrota';
+                diferenca = -valorUsado;
+                console.log(`[P6-Fallback] LOSS confirmado pela corretora.`);
+              }
               saldoAnteriorRef.current = saldoAtual;
               saldoAposResultadoP6 = saldoAtual;
-              console.log(`[P6-Fallback] WIN recuperado da corretora após atraso do saldo!`);
             } else {
-              resultado = 'derrota';
-              diferenca = -valorUsado;
+              // Fallback 2: Relay/VPS mode (SDK null) ou erro no SDK - verifica a vela
+              const todasVelasF = servicoVelas.obterTodasVelas();
+              const resultCandleTs = optionCandleStart / 1000;
+              const velaResultado =
+                todasVelasF.find(v => v.timestamp === resultCandleTs) ??
+                todasVelasF.find(v => v.timestamp === resultCandleTs - 60) ??
+                todasVelasF[todasVelasF.length - 2] ??
+                todasVelasF[todasVelasF.length - 1];
+              
+              if (velaResultado) {
+                let abRef = velaResultado.abertura;
+                let fcRef = velaResultado.fechamento;
+                if (automacao.config?.estrategia === 'CavaloTroia' && todasVelasF.length >= 2) {
+                  const velaAnterior = todasVelasF.find(v => v.timestamp === resultCandleTs - 60)
+                    ?? todasVelasF[todasVelasF.length - 2];
+                  abRef = velaAnterior?.abertura ?? abRef;
+                }
+                const direcao = opAtual.direcao;
+                if ((direcao === 'compra' && fcRef > abRef) || (direcao === 'venda' && fcRef < abRef)) {
+                  resultado = 'vitoria';
+                  diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
+                  console.log(`[P6-Fallback-Vela] WIN recuperado pela análise da vela! ts=${resultCandleTs} dir=${direcao}`);
+                } else {
+                  resultado = 'derrota';
+                  diferenca = -valorUsado;
+                  console.log(`[P6-Fallback-Vela] LOSS confirmado pela análise da vela. ts=${resultCandleTs} dir=${direcao}`);
+                }
+              } else {
+                resultado = 'derrota';
+                diferenca = -valorUsado;
+                console.log(`[P6-Saldo] LOSS (timeout 20s sem dados) | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
+              }
               saldoAnteriorRef.current = saldoAtual;
               saldoAposResultadoP6 = saldoAtual;
-              console.log(`[P6-Saldo] LOSS (timeout 20s) | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
             }
           }
         } else if (ehBlitz) {

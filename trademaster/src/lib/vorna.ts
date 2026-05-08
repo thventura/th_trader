@@ -1005,7 +1005,24 @@ export async function obterHistoricoOperacoes(): Promise<Op[]> {
 // ── Resultado Real de Operação via Histórico do SDK ──
 
 export async function obterResultadoOperacao(opId: string): Promise<{ resultado: 'vitoria' | 'derrota'; pnl: number } | null> {
-  if (!_sdk) return null;
+  if (!_sdk) {
+    const sessaoAtual = obterSessaoVorna();
+    if (!sessaoAtual?.ssid) return null;
+    try {
+      const resp = await fetch('/api/vorna-relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getResult', ssid: sessaoAtual.ssid, opId }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.resultado) return data as { resultado: 'vitoria' | 'derrota'; pnl: number };
+      }
+    } catch {
+      // Ignora erro e retorna null abaixo
+    }
+    return null;
+  }
   try {
     const positionsFacade = await _sdk.positions();
 
