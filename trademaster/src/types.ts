@@ -23,25 +23,6 @@ export interface Profile {
   vorna_senha?: string;
 }
 
-export interface Operacao {
-  id: string;
-  user_id: string;
-  imagem_url?: string;
-  tipo_mercado: 'forex' | 'criptomoedas';
-  corretora: string;
-  par_ativos: string;
-  estrategia: string;
-  direcao: 'compra' | 'venda';
-  resultado_operacao: 'vitoria' | 'derrota';
-  valor_investido: number;
-  payout: number;
-  valor_retorno: number;
-  resultado: number;
-  nivel_confianca: number;
-  horario_operacao: string;
-  observacoes?: string;
-}
-
 export interface SessaoMindset {
   id: string;
   user_id: string;
@@ -247,16 +228,6 @@ export interface EstadoAutomacao {
   ultima_verificacao: string;
   ultimo_motivo?: string;
   inicio: string | null;
-}
-
-export interface OperacaoAberta {
-  id: string;
-  ativo: string;
-  direcao: 'compra' | 'venda';
-  valor: number;
-  hora_envio: string;
-  status: 'enviada' | 'aguardando_resultado';
-  preco_entrada?: number;
 }
 
 // ── Velas e Quadrantes ──

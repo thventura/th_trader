@@ -1090,9 +1090,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
           // P6: travar banca de sessão na primeira entrada (garante valores consistentes até o próximo WIN)
           if (config.gerenciamento === 'P6' && bancaInicioSessaoP6Ref.current === 0) {
-            const bancaTravada = saldoAnteriorRef.current || 1;
-            bancaInicioSessaoP6Ref.current = bancaTravada;
-            saldoP6Ref.current = bancaTravada;
+            const bancaTravada = saldoAnteriorRef.current;
+            if (bancaTravada > 0) {
+              bancaInicioSessaoP6Ref.current = bancaTravada;
+              saldoP6Ref.current = bancaTravada;
+            } else {
+              return; // aguardar próximo tick — saldo ainda não carregado
+            }
           }
 
           const { valor, novo_ciclo } = calcularValorOperacao({
@@ -1265,9 +1269,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // então a recalculação entendia ciclo>=1 e retornava mão fixa em vez do valor Soros.
         // P6: travar banca de sessão na primeira entrada
         if (config.gerenciamento === 'P6' && bancaInicioSessaoP6Ref.current === 0) {
-          const bancaTravada = saldoAnteriorRef.current || 1;
-          bancaInicioSessaoP6Ref.current = bancaTravada;
-          saldoP6Ref.current = bancaTravada;
+          const bancaTravada = saldoAnteriorRef.current;
+          if (bancaTravada > 0) {
+            bancaInicioSessaoP6Ref.current = bancaTravada;
+            saldoP6Ref.current = bancaTravada;
+          } else {
+            return; // aguardar próximo tick — saldo ainda não carregado
+          }
         }
         // P6: usa cicloMartingaleRef como índice do nível atual (já avançado pelo result handler)
         const valorP6 = config.gerenciamento === 'P6'
@@ -2149,7 +2157,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       ultimoCandleFluxoRef.current = 0;
       setCicloMartingale(0);
       const valorInicialP6 = config.gerenciamento === 'P6'
-        ? calcularP6Entradas(saldoAtual || 1, config.payout || 88)[0]
+        ? calcularP6Entradas(saldoAtual || config.valor_por_operacao, config.payout || 88)[0]
         : config.valor_por_operacao;
       setValorOperacaoAtual(valorInicialP6);
       setHistoricoQuadrantes([]);
