@@ -233,6 +233,10 @@ module.exports = async function handler(req, res) {
         String(p.internalId || '') === opId;
 
       const extrairResultado = (p) => {
+        const status = (p.status || '').toLowerCase();
+        if (status === 'win') return { resultado: 'vitoria', pnl: p.pnlNet || p.pnl || 0 };
+        if (status === 'loose' || status === 'draw') return { resultado: 'derrota', pnl: -(p.invest || p.price || 0) };
+        
         const pnl = (p.pnlNet ?? p.pnl ?? 0);
         const invest = (p.invest ?? p.price ?? 0);
         return { resultado: pnl > 0 ? 'vitoria' : 'derrota', pnl: pnl > 0 ? pnl : -invest };

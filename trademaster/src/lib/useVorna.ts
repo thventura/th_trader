@@ -946,8 +946,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           }
           const tempoLimite = ((opFantasma?.duracao ?? 60) + 90) * 1000;
           const tempoDecorrido = Date.now() - new Date(opFantasma?.hora_envio ?? 0).getTime();
+          
           if (tempoDecorrido > tempoLimite) {
             console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s sem resultado). Limpando e aplicando LOSS de proteção.`);
+            
+            // FIX: Prevenir múltiplo processamento se a aba estiver em segundo plano (React deferring state)
+            if (ultimaOpProcessadaIdRef.current === opFantasma.id) return;
+            ultimaOpProcessadaIdRef.current = opFantasma.id;
+            
             setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opFantasma.id));
             setHistoricoQuadrantes5min(prev => {
               const copia = [...prev];
@@ -1421,9 +1427,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             // Ainda dentro dos 20s após a expiração real → aguarda saldo atualizar
             return;
           } else {
-            // Timeout de 20 segundos após expiração → LOSS confirmado ou atraso do saldo
-            // Fallback 1: tentar buscar o resultado oficial na corretora caso o saldo tenha apenas demorado a atualizar
-            const brokerResult = await obterResultadoOperacao(opId).catch(() => null);
+            // P6 Timeout: 20s passados, o saldo não subiu. Pode ser delay imenso ou LOSS real.
+            // Fallback 1: Rota Relay P6 Exclusiva (bypass local SDK)
+            let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
+            for (let i = 0; i < 4 && !brokerResult; i++) {
+              brokerResult = await obterResultadoOperacao(opId).catch(() => null);
+              if (!brokerResult) await new Promise(r => setTimeout(r, 1000));
+            }
+
             if (brokerResult) {
               if (brokerResult.resultado === 'vitoria') {
                 resultado = 'vitoria';
