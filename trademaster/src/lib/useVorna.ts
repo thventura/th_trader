@@ -826,7 +826,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     const config = automacao.config;
     if (!config) return;
 
-    const tick = () => {
+    const tick = async () => {
       const agora = new Date();
       const minutos = agora.getMinutes();
       const segundosTick = agora.getSeconds();
@@ -948,46 +948,64 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const tempoDecorrido = Date.now() - new Date(opFantasma?.hora_envio ?? 0).getTime();
           
           if (tempoDecorrido > tempoLimite) {
-            console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s sem resultado). Limpando e aplicando LOSS de proteção.`);
-            
-            // FIX: Prevenir múltiplo processamento se a aba estiver em segundo plano (React deferring state)
+            console.warn(`[Q5min] Operação fantasma detectada (${Math.round(tempoDecorrido / 1000)}s). Consultando corretora antes de aplicar resultado.`);
+
             if (ultimaOpProcessadaIdRef.current === opFantasma.id) return;
             ultimaOpProcessadaIdRef.current = opFantasma.id;
-            
+
+            const valorUsado = opFantasma?.valor || valorOperacaoAtual || config.valor_por_operacao || 0;
+
+            // Consultar resultado real na VornaBroker (getAllPositions usa cache WS — sem req de rede na maioria dos casos)
+            const resultadoReal = await obterResultadoOperacao(opFantasma.id).catch(() => null);
+            const ghostResultado: 'vitoria' | 'derrota' = resultadoReal?.resultado ?? 'derrota';
+            console.log(`[Q5min-Fantasma] ${resultadoReal ? ghostResultado.toUpperCase() : 'não encontrado → LOSS assumido'}`);
+
             setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opFantasma.id));
             setHistoricoQuadrantes5min(prev => {
               const copia = [...prev];
               if (copia.length > 0 && copia[copia.length - 1].resultado === null) {
-                copia[copia.length - 1] = { ...copia[copia.length - 1], resultado: 'derrota' };
+                copia[copia.length - 1] = { ...copia[copia.length - 1], resultado: ghostResultado };
               }
               return copia;
             });
 
-            // FIX: Aplicar LOSS para que o P6/Martingale avance de nível corretamente
-            const valorUsado = opFantasma?.valor || valorOperacaoAtual || config.valor_por_operacao || 0;
             if (config.gerenciamento === 'P6') {
-               saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current - valorUsado);
-               const nivelAtual = cicloMartingaleRef.current;
-               const novoNivel = nivelAtual >= 5 ? 0 : nivelAtual + 1;
-               cicloMartingaleRef.current = novoNivel;
-               setCicloMartingale(novoNivel);
-               perdasAcumuladasP6Ref.current += valorUsado;
-               setPerdasAcumuladasP6(perdasAcumuladasP6Ref.current);
+              if (ghostResultado === 'vitoria') {
+                // WIN real confirmado: reiniciar sessão P6 corretamente
+                const novaBanca = await obterSaldoRapido(config.tipo_conta ?? 'REAL').catch(() => saldoP6Ref.current);
+                bancaInicioSessaoP6Ref.current = novaBanca;
+                saldoP6Ref.current = novaBanca;
+                perdasAcumuladasP6Ref.current = 0;
+                cicloMartingaleRef.current = 0;
+                setCicloMartingale(0);
+                setBancaP6(novaBanca);
+                setPerdasAcumuladasP6(0);
+                console.log(`[Q5min-Fantasma] P6 WIN → sessão reiniciada. Nova banca: ${novaBanca.toFixed(2)}`);
+              } else {
+                // LOSS confirmado: avançar nível P6
+                saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current - valorUsado);
+                const nivelAtual = cicloMartingaleRef.current;
+                const novoNivel = nivelAtual >= 5 ? 0 : nivelAtual + 1;
+                cicloMartingaleRef.current = novoNivel;
+                setCicloMartingale(novoNivel);
+                perdasAcumuladasP6Ref.current += valorUsado;
+                setPerdasAcumuladasP6(perdasAcumuladasP6Ref.current);
+              }
             } else if (config.gerenciamento === 'Martingale' || config.gerenciamento === 'Soros') {
-               const { novo_ciclo } = calcularValorOperacao({
-                 estrategia: config.gerenciamento,
-                 valor_base: config.valor_por_operacao,
-                 resultado_anterior: 'derrota',
-                 valor_anterior: valorUsado,
-                 multiplicador_martingale: config.multiplicador_martingale,
-                 multiplicador_soros: config.multiplicador_soros,
-                 payout: config.payout,
-                 ciclo_martingale: cicloMartingaleRef.current,
-                 max_martingale: config.max_martingale,
-                 banca_atual: config.gerenciamento === 'P6' ? bancaInicioSessaoP6Ref.current : undefined,
-               });
-               cicloMartingaleRef.current = novo_ciclo;
-               setCicloMartingale(novo_ciclo);
+              const { novo_ciclo } = calcularValorOperacao({
+                estrategia: config.gerenciamento,
+                valor_base: config.valor_por_operacao,
+                resultado_anterior: ghostResultado,
+                valor_anterior: valorUsado,
+                multiplicador_martingale: config.multiplicador_martingale,
+                multiplicador_soros: config.multiplicador_soros,
+                payout: config.payout,
+                ciclo_martingale: cicloMartingaleRef.current,
+                max_martingale: config.max_martingale,
+                banca_atual: undefined,
+              });
+              cicloMartingaleRef.current = novo_ciclo;
+              setCicloMartingale(novo_ciclo);
             }
           } else {
             // O robô aguardará a resposta OFICIAL da corretora no polling otimizado de alta frequência.
@@ -1411,52 +1429,43 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           automacao.config?.estrategia === 'Quadrantes';
 
         if (automacao.config?.gerenciamento === 'P6') {
-          // Throttle: checar saldo no máximo uma vez a cada 5s
+          // Throttle: checar no máximo uma vez a cada 5s
           if (Date.now() - ultimaVerificacaoSaldoP6Ref.current < 5000) return;
           ultimaVerificacaoSaldoP6Ref.current = Date.now();
 
-          const saldoAtual = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
-          if (saldoAtual === null) return;
-
-          // Referência fixa da sessão para saber o saldo esperado de LOSS
-          const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
-          const diffP6 = saldoAtual - referenciaP6;
-
           const msAposExpiracao = Date.now() - expiracaoReal;
 
-          if (diffP6 > valorUsado * 0.3) {
-            // Saldo subiu mais que o valor da entrada → payout creditado → WIN
-            resultado = 'vitoria';
-            diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
-            saldoAnteriorRef.current = saldoAtual;
-            saldoAposResultadoP6 = saldoAtual;
-            console.log(`[P6-Saldo] WIN | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
-          } else if (msAposExpiracao < 20000) {
-            // Ainda dentro dos 20s após a expiração real → aguarda saldo atualizar
-            return;
-          } else {
-            // P6 Timeout: 20s passados, o saldo não subiu. Pode ser delay imenso ou LOSS real.
-            // Fallback 1: Rota Relay P6 Exclusiva (bypass local SDK)
-            let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
-            for (let i = 0; i < 4 && !brokerResult; i++) {
-              brokerResult = await obterResultadoOperacao(opId).catch(() => null);
-              if (!brokerResult) await new Promise(r => setTimeout(r, 1000));
-            }
+          // 1. SDK/relay PRIMEIRO — getAllPositions usa cache WebSocket (sem req de rede na maioria dos casos)
+          const sdkResult = await obterResultadoOperacao(opId).catch(() => null);
 
-            if (brokerResult) {
-              if (brokerResult.resultado === 'vitoria') {
-                resultado = 'vitoria';
-                diferenca = brokerResult.pnl;
-                console.log(`[P6-Fallback] WIN recuperado da corretora após atraso do saldo!`);
-              } else {
-                resultado = 'derrota';
-                diferenca = -valorUsado;
-                console.log(`[P6-Fallback] LOSS confirmado pela corretora.`);
-              }
+          if (sdkResult) {
+            resultado = sdkResult.resultado;
+            diferenca = sdkResult.resultado === 'vitoria'
+              ? valorUsado * ((automacao.config?.payout || 88) / 100)
+              : -valorUsado;
+            const saldoAux = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
+            saldoAnteriorRef.current = saldoAux ?? saldoAnteriorRef.current;
+            saldoAposResultadoP6 = saldoAux;
+            console.log(`[P6-SDK] ${resultado.toUpperCase()} | pnl: ${diferenca.toFixed(2)}`);
+          } else {
+            // 2. Fallback: comparação de saldo (Blitz credita com delay — aguarda até 45s)
+            const saldoAtual = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
+            if (saldoAtual === null) return;
+
+            const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
+            const diffP6 = saldoAtual - referenciaP6;
+
+            if (diffP6 > valorUsado * 0.3) {
+              resultado = 'vitoria';
+              diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
               saldoAnteriorRef.current = saldoAtual;
               saldoAposResultadoP6 = saldoAtual;
+              console.log(`[P6-Saldo] WIN | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
+            } else if (msAposExpiracao < 45000) {
+              // Aguarda até 45s para saldo Blitz atualizar (era 20s)
+              return;
             } else {
-              // Fallback 2: Relay/VPS mode (SDK null) ou erro no SDK - verifica a vela
+              // 3. Fallback vela (último recurso após 45s sem saldo confirmar)
               const todasVelasF = servicoVelas.obterTodasVelas();
               const resultCandleTs = optionCandleStart / 1000;
               const velaResultado =
@@ -1464,7 +1473,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 todasVelasF.find(v => v.timestamp === resultCandleTs - 60) ??
                 todasVelasF[todasVelasF.length - 2] ??
                 todasVelasF[todasVelasF.length - 1];
-              
+
               if (velaResultado) {
                 let abRef = velaResultado.abertura;
                 let fcRef = velaResultado.fechamento;
@@ -1477,16 +1486,16 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 if ((direcao === 'compra' && fcRef > abRef) || (direcao === 'venda' && fcRef < abRef)) {
                   resultado = 'vitoria';
                   diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
-                  console.log(`[P6-Fallback-Vela] WIN recuperado pela análise da vela! ts=${resultCandleTs} dir=${direcao}`);
+                  console.log(`[P6-Vela] WIN | ts=${resultCandleTs} dir=${direcao}`);
                 } else {
                   resultado = 'derrota';
                   diferenca = -valorUsado;
-                  console.log(`[P6-Fallback-Vela] LOSS confirmado pela análise da vela. ts=${resultCandleTs} dir=${direcao}`);
+                  console.log(`[P6-Vela] LOSS | ts=${resultCandleTs} dir=${direcao}`);
                 }
               } else {
                 resultado = 'derrota';
                 diferenca = -valorUsado;
-                console.log(`[P6-Saldo] LOSS (timeout 20s sem dados) | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
+                console.log(`[P6-Saldo] LOSS (timeout 45s sem dados) | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
               }
               saldoAnteriorRef.current = saldoAtual;
               saldoAposResultadoP6 = saldoAtual;
