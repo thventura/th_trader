@@ -103,6 +103,19 @@ export default function BemVindo() {
             </p>
           </div>
 
+          <div
+            className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+            style={{ paddingBottom: '56.25%' }}
+          >
+            <iframe
+              src="https://www.youtube.com/embed/ZAaigJRLcYE"
+              title="Vídeo Explicativo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
+
         </motion.div>
       </div>
     </div>
