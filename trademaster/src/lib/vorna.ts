@@ -1027,13 +1027,14 @@ export async function subscreverResultadoOperacao(
       const isClosed = status !== 'open' && status !== '' && status !== 'pending';
       if (!isClosed) return;
 
-      // Aguarda dados de PnL finais (definidos no fechamento completo)
-      if (position.pnlNet === undefined || position.pnlNet === null) return;
+      // Aceita qualquer fonte de PnL disponível no fechamento (pnlNet, pnlRealized, closeProfit, pnl)
+      const pnlBruto = position.pnlNet ?? position.pnlRealized ?? position.closeProfit ?? position.pnl;
+      if (pnlBruto === undefined || pnlBruto === null) return;
 
       disparado = true;
       positionsFacade.unsubscribeOnUpdatePosition(handler);
 
-      const pnl = position.pnlNet as number;
+      const pnl = pnlBruto as number;
       const invest = (position.invest ?? 0) as number;
       const resultado: 'vitoria' | 'derrota' = pnl > 0 ? 'vitoria' : 'derrota';
       const pnlFinal = pnl > 0 ? pnl : -invest;

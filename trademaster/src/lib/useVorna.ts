@@ -1464,13 +1464,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           automacao.config?.estrategia === 'Quadrantes';
 
         if (automacao.config?.gerenciamento === 'P6') {
-          // Throttle: checar no máximo uma vez a cada 5s
-          if (Date.now() - ultimaVerificacaoSaldoP6Ref.current < 5000) return;
-          ultimaVerificacaoSaldoP6Ref.current = Date.now();
-
-          const msAposExpiracao = Date.now() - expiracaoReal;
-
-          // 0. Evento WebSocket nativo — resultado disponível imediatamente (sem req de rede)
+          // 0. Evento WebSocket nativo — processa IMEDIATAMENTE, sem throttle
           const resultadoEvento = resultadoPendenteRef.current.get(opId);
           if (resultadoEvento) {
             resultadoPendenteRef.current.delete(opId);
@@ -1482,6 +1476,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             saldoAposResultadoP6 = saldoAux;
             console.log(`[P6-Evento-WS] ${resultado.toUpperCase()} | pnl: ${diferenca.toFixed(2)}`);
           } else {
+
+          // Throttle para fallbacks (SDK/saldo/vela): checar no máximo uma vez a cada 5s
+          if (Date.now() - ultimaVerificacaoSaldoP6Ref.current < 5000) return;
+          ultimaVerificacaoSaldoP6Ref.current = Date.now();
+
+          const msAposExpiracao = Date.now() - expiracaoReal;
 
           // 1. SDK/relay — getAllPositions usa cache WebSocket (sem req de rede na maioria dos casos)
           const sdkResult = await obterResultadoOperacao(opId).catch(() => null);
@@ -1551,11 +1551,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           }
           } // fecha else do evento WebSocket
         } else if (ehBlitz) {
-          // Não-P6 Blitz: aguarda expiração e detecta resultado
-          const msParaExpiracao = Math.max(0, optionCandleStart + duracaoOp - Date.now());
-          if (msParaExpiracao > 0) await new Promise(r => setTimeout(r, msParaExpiracao));
-
-          // 0. Evento WebSocket nativo — resultado imediato se disponível
+          // 0. Evento WebSocket nativo — processa IMEDIATAMENTE se resultado disponível
           const resultadoEventoBlitz = resultadoPendenteRef.current.get(opId);
           if (resultadoEventoBlitz) {
             resultadoPendenteRef.current.delete(opId);
@@ -1565,6 +1561,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             console.log(`[Blitz-Evento-WS] ${resultado.toUpperCase()} | pnl: ${diferenca.toFixed(2)}`);
             obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
           } else {
+
+          // Fallback: aguarda expiração antes de consultar broker/saldo/vela
+          const msParaExpiracao = Math.max(0, optionCandleStart + duracaoOp - Date.now());
+          if (msParaExpiracao > 0) await new Promise(r => setTimeout(r, msParaExpiracao));
 
           let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
           for (let tentativa = 0; tentativa < 10 && !brokerResult; tentativa++) {
