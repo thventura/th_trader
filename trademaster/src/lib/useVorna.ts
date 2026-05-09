@@ -26,6 +26,7 @@ import {
   limparEstadoAutomacao,
   obterAtivosDisponiveis,
   getSdk,
+  subscreverResultadoOperacao,
   type ActiveInfo
 } from './vorna';
 import { upsertOperacoesBatch, getProfile, updateProfile } from './supabaseService';
@@ -180,6 +181,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   });
   const saldoAnteriorRef = useRef<number>(0);
   const pollingRef = useRef<number | null>(null);
+  // Cache de resultados recebidos via evento WebSocket nativo do SDK
+  const resultadoPendenteRef = useRef<Map<string, { resultado: 'vitoria' | 'derrota'; pnl: number }>>(new Map());
+  // Funções de cancelamento das subscrições ativas (por opId)
+  const unsubResultadoRef = useRef<Map<string, () => void>>(new Map());
 
   // Quadrantes
   const [estadoWS, setEstadoWS] = useState<EstadoWebSocket>({
@@ -609,6 +614,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               saldoAnteriorRef.current -= valor;
             }
             setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+            subscreverResultadoOperacao(id, (res, pnl) => {
+              resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+              unsubResultadoRef.current.delete(id);
+            }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
           })
           .catch(err => {
             console.error('[FluxoVelas] Erro no envio:', err);
@@ -711,6 +720,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             saldoAnteriorRef.current -= valor;
           }
           setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+          subscreverResultadoOperacao(id, (res, pnl) => {
+            resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+            unsubResultadoRef.current.delete(id);
+          }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
         })
         .catch(err => {
           console.error('[LogicaDoPreco] Erro no envio:', err);
@@ -802,6 +815,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             saldoAnteriorRef.current -= valor;
           }
           setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+          subscreverResultadoOperacao(id, (res, pnl) => {
+            resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+            unsubResultadoRef.current.delete(id);
+          }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
         })
         .catch(err => {
           console.error('[ICE] Erro no envio:', err);
@@ -899,6 +916,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 saldoAnteriorRef.current = s + valor;
               } catch { saldoAnteriorRef.current -= valor; }
               setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+              subscreverResultadoOperacao(id, (res, pnl) => {
+                resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+                unsubResultadoRef.current.delete(id);
+              }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
             })
             .catch(err => {
               console.error('[CavaloTroia] Erro ao executar:', err);
@@ -1067,6 +1088,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                   saldoAnteriorRef.current = s + valor;
                 } catch { saldoAnteriorRef.current -= valor; }
                 setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+                subscreverResultadoOperacao(id, (res, pnl) => {
+                  resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+                  unsubResultadoRef.current.delete(id);
+                }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
               })
               .catch(err => {
                 console.error('[Q5min] Erro no gale:', err);
@@ -1170,6 +1195,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                   gale_nivel: 0,
                 }]);
                 setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+                subscreverResultadoOperacao(id, (res, pnl) => {
+                  resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+                  unsubResultadoRef.current.delete(id);
+                }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
               })
               .catch(async err => {
                 console.error('[Q5min] Erro ao executar operação:', (err as Error)?.message ?? err);
@@ -1363,6 +1392,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 ...prev,
                 ultima_verificacao: new Date().toISOString(),
               }));
+
+              // Subscrever evento nativo de resultado (WebSocket SDK — imediato)
+              subscreverResultadoOperacao(id, (res, pnl) => {
+                resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+                unsubResultadoRef.current.delete(id);
+              }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
             })
             .catch(err => {
               console.error('[Quadrante] Erro ao executar operação:', err);
@@ -1435,7 +1470,20 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
           const msAposExpiracao = Date.now() - expiracaoReal;
 
-          // 1. SDK/relay PRIMEIRO — getAllPositions usa cache WebSocket (sem req de rede na maioria dos casos)
+          // 0. Evento WebSocket nativo — resultado disponível imediatamente (sem req de rede)
+          const resultadoEvento = resultadoPendenteRef.current.get(opId);
+          if (resultadoEvento) {
+            resultadoPendenteRef.current.delete(opId);
+            unsubResultadoRef.current.delete(opId);
+            resultado = resultadoEvento.resultado;
+            diferenca = resultadoEvento.pnl;
+            const saldoAux = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
+            saldoAnteriorRef.current = saldoAux ?? saldoAnteriorRef.current;
+            saldoAposResultadoP6 = saldoAux;
+            console.log(`[P6-Evento-WS] ${resultado.toUpperCase()} | pnl: ${diferenca.toFixed(2)}`);
+          } else {
+
+          // 1. SDK/relay — getAllPositions usa cache WebSocket (sem req de rede na maioria dos casos)
           const sdkResult = await obterResultadoOperacao(opId).catch(() => null);
 
           if (sdkResult) {
@@ -1501,10 +1549,22 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               saldoAposResultadoP6 = saldoAtual;
             }
           }
+          } // fecha else do evento WebSocket
         } else if (ehBlitz) {
-          // Não-P6 Blitz: polling oficial da corretora
+          // Não-P6 Blitz: aguarda expiração e detecta resultado
           const msParaExpiracao = Math.max(0, optionCandleStart + duracaoOp - Date.now());
           if (msParaExpiracao > 0) await new Promise(r => setTimeout(r, msParaExpiracao));
+
+          // 0. Evento WebSocket nativo — resultado imediato se disponível
+          const resultadoEventoBlitz = resultadoPendenteRef.current.get(opId);
+          if (resultadoEventoBlitz) {
+            resultadoPendenteRef.current.delete(opId);
+            unsubResultadoRef.current.delete(opId);
+            resultado = resultadoEventoBlitz.resultado;
+            diferenca = resultadoEventoBlitz.pnl;
+            console.log(`[Blitz-Evento-WS] ${resultado.toUpperCase()} | pnl: ${diferenca.toFixed(2)}`);
+            obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
+          } else {
 
           let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
           for (let tentativa = 0; tentativa < 10 && !brokerResult; tentativa++) {
@@ -1541,6 +1601,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             }
           }
           obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').then(s => { saldoAnteriorRef.current = s; }).catch(() => {});
+          } // fecha else do evento WebSocket Blitz
         } else {
           // Não-Blitz, não-P6: comparação de saldo (FluxoVelas, LogicaDoPreco, ICE)
           if (tempoDecorrido < duracaoOp + 1200) return;
@@ -2195,6 +2256,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       operacoesAbertasRef.current = [];
       processandoResultadoRef.current = false;
       ultimaOpProcessadaIdRef.current = null;
+      // Cancelar subscrições de eventos e limpar cache de resultados pendentes
+      unsubResultadoRef.current.forEach(unsub => unsub());
+      unsubResultadoRef.current.clear();
+      resultadoPendenteRef.current.clear();
     };
 
     // ── Modo VPS: delega ao servidor ─────────────────────────────────────────

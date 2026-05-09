@@ -1002,6 +1002,51 @@ export async function obterHistoricoOperacoes(): Promise<Op[]> {
   }
 }
 
+// ── Subscrição Nativa ao Resultado via WebSocket do SDK ──
+// Dispara imediatamente quando a posição fecha (sem polling, sem comparação de saldo).
+// Retorna função de cancelamento; retorna null se SDK não estiver disponível.
+
+export async function subscreverResultadoOperacao(
+  opId: string,
+  onResultado: (resultado: 'vitoria' | 'derrota', pnl: number) => void
+): Promise<(() => void) | null> {
+  if (!_sdk) return null;
+  try {
+    const positionsFacade = await _sdk.positions();
+    let disparado = false;
+
+    const handler = (position: any) => {
+      if (disparado) return;
+
+      const matchId =
+        String(position.externalId ?? '') === opId ||
+        String(position.internalId ?? '') === opId;
+      if (!matchId) return;
+
+      const status = (position.status || '').toLowerCase();
+      const isClosed = status !== 'open' && status !== '' && status !== 'pending';
+      if (!isClosed) return;
+
+      // Aguarda dados de PnL finais (definidos no fechamento completo)
+      if (position.pnlNet === undefined || position.pnlNet === null) return;
+
+      disparado = true;
+      positionsFacade.unsubscribeOnUpdatePosition(handler);
+
+      const pnl = position.pnlNet as number;
+      const invest = (position.invest ?? 0) as number;
+      const resultado: 'vitoria' | 'derrota' = pnl > 0 ? 'vitoria' : 'derrota';
+      const pnlFinal = pnl > 0 ? pnl : -invest;
+      onResultado(resultado, pnlFinal);
+    };
+
+    positionsFacade.subscribeOnUpdatePosition(handler);
+    return () => { disparado = true; positionsFacade.unsubscribeOnUpdatePosition(handler); };
+  } catch {
+    return null;
+  }
+}
+
 // ── Resultado Real de Operação via Histórico do SDK ──
 
 export async function obterResultadoOperacao(opId: string): Promise<{ resultado: 'vitoria' | 'derrota'; pnl: number } | null> {
