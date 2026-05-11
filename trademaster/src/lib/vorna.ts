@@ -189,17 +189,17 @@ export async function comReconexao<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
-    const deveReconectar = err instanceof VornaErro && (
-      err.codigo === 401 ||
-      err.codigo === 403 ||
-      (err.message ?? '').includes('Timeout ao enviar')
-    );
-    if (deveReconectar) {
-      console.warn('[Vorna] Sessão expirada ou timeout, tentando reconexão...');
+    if (err instanceof VornaErro && (err.codigo === 401 || err.codigo === 403)) {
+      console.warn('[Vorna] Sessão expirada, tentando reconexão...');
       const reconectou = await reconectarVorna();
       if (reconectou) {
         return await fn();
       }
+    }
+    // Timeout: não reenviar — a operação pode já ter sido aceita pelo broker.
+    // Reconectar a sessão em background para próximas operações funcionarem.
+    if (err instanceof VornaErro && (err.message ?? '').includes('Timeout ao enviar')) {
+      reconectarVorna().catch(() => {});
     }
     throw err;
   }
