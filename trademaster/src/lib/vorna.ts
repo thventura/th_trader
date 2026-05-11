@@ -1024,7 +1024,7 @@ export async function subscreverResultadoOperacao(
       if (!matchId) return;
 
       const status = (position.status || '').toLowerCase();
-      const isClosed = status !== 'open' && status !== '' && status !== 'pending';
+      const isClosed = status === 'closed';
       if (!isClosed) return;
 
       // Aceita qualquer fonte de PnL disponível no fechamento (pnlNet, pnlRealized, closeProfit, pnl)
@@ -1081,12 +1081,11 @@ export async function obterResultadoOperacao(opId: string): Promise<{ resultado:
     const allPositions = positionsFacade.getAllPositions();
     const posLive = allPositions.find((p: any) => {
       const status = (p.status || '').toLowerCase();
-      const fechada = status !== 'open' && status !== '' && status !== 'pending';
-      return matchId(p) && fechada;
+      return matchId(p) && status === 'closed';
     });
 
     const extrairResultado = (p: any) => {
-      const pnl = ((p as any).pnlNet ?? (p as any).pnl ?? 0) as number;
+      const pnl = ((p as any).pnlNet ?? (p as any).pnlRealized ?? (p as any).closeProfit ?? (p as any).pnl ?? 0) as number;
       const invest = ((p as any).invest ?? (p as any).price ?? 0) as number;
       return { resultado: (pnl > 0 ? 'vitoria' : 'derrota') as 'vitoria' | 'derrota', pnl: pnl > 0 ? pnl : -invest };
     };

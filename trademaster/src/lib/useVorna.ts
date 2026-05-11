@@ -976,10 +976,21 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
             const valorUsado = opFantasma?.valor || valorOperacaoAtual || config.valor_por_operacao || 0;
 
-            // Consultar resultado real na VornaBroker (getAllPositions usa cache WS — sem req de rede na maioria dos casos)
-            const resultadoReal = await obterResultadoOperacao(opFantasma.id).catch(() => null);
-            const ghostResultado: 'vitoria' | 'derrota' = resultadoReal?.resultado ?? 'derrota';
-            console.log(`[Q5min-Fantasma] ${resultadoReal ? ghostResultado.toUpperCase() : 'não encontrado → LOSS assumido'}`);
+            // 1. Event cache (resultado já recebido via WebSocket — sem req de rede)
+            const resultadoEvento = resultadoPendenteRef.current.get(opFantasma.id);
+            let ghostResultado: 'vitoria' | 'derrota';
+            if (resultadoEvento) {
+              ghostResultado = resultadoEvento.resultado;
+              resultadoPendenteRef.current.delete(opFantasma.id);
+              unsubResultadoRef.current.get(opFantasma.id)?.();
+              unsubResultadoRef.current.delete(opFantasma.id);
+              console.log(`[Q5min-Fantasma] WS cache: ${ghostResultado.toUpperCase()}`);
+            } else {
+              // 2. SDK: getAllPositions (aberta) + getPositionsHistory (fechada)
+              const resultadoReal = await obterResultadoOperacao(opFantasma.id).catch(() => null);
+              ghostResultado = resultadoReal?.resultado ?? 'derrota';
+              console.log(`[Q5min-Fantasma] ${resultadoReal ? `SDK: ${ghostResultado.toUpperCase()}` : 'não encontrado → LOSS assumido'}`);
+            }
 
             setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opFantasma.id));
             setHistoricoQuadrantes5min(prev => {
@@ -992,15 +1003,16 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
             if (config.gerenciamento === 'P6') {
               if (ghostResultado === 'vitoria') {
-                // WIN real confirmado: reiniciar sessão P6 corretamente
+                // Resetar ciclo SYNC antes de qualquer await (evita race condition entre ticks)
+                cicloMartingaleRef.current = 0;
+                perdasAcumuladasP6Ref.current = 0;
+                setCicloMartingale(0);
+                setPerdasAcumuladasP6(0);
+                // Buscar nova banca async — seguro, ciclo já foi resetado
                 const novaBanca = await obterSaldoRapido(config.tipo_conta ?? 'REAL').catch(() => saldoP6Ref.current);
                 bancaInicioSessaoP6Ref.current = novaBanca;
                 saldoP6Ref.current = novaBanca;
-                perdasAcumuladasP6Ref.current = 0;
-                cicloMartingaleRef.current = 0;
-                setCicloMartingale(0);
                 setBancaP6(novaBanca);
-                setPerdasAcumuladasP6(0);
                 console.log(`[Q5min-Fantasma] P6 WIN → sessão reiniciada. Nova banca: ${novaBanca.toFixed(2)}`);
               } else {
                 // LOSS confirmado: avançar nível P6
