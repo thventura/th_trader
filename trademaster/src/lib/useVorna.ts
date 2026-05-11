@@ -1495,7 +1495,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
           const msAposExpiracao = Date.now() - expiracaoReal;
 
-          // 1. SDK/relay — getAllPositions usa cache WebSocket (sem req de rede na maioria dos casos)
+          // Não chamar SDK/relay enquanto a Blitz ainda não fechou (retornaria "não encontrado")
+          if (msAposExpiracao < 0) return;
+
+          // 1. SDK/relay — getAllPositions (aberta) + getPositionsHistory (fechada)
           const sdkResult = await obterResultadoOperacao(opId).catch(() => null);
 
           if (sdkResult) {
