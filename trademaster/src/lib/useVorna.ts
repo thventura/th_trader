@@ -1040,6 +1040,28 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               cicloMartingaleRef.current = novo_ciclo;
               setCicloMartingale(novo_ciclo);
             }
+
+            // Push remoto para celular (ghost handler)
+            const tituloGhost = ghostResultado === 'vitoria' ? 'Operação Fechada - WIN' : 'Operação Fechada - LOSS';
+            const dirGhost = opFantasma.direcao === 'compra' ? 'COMPRA' : 'VENDA';
+            const corpoGhost = ghostResultado === 'vitoria'
+              ? `${config.ativo} | ${dirGhost} | +R$ ${(valorUsado * ((config.payout || 88) / 100)).toFixed(2)} | Payout ${config.payout}%`
+              : `${config.ativo} | ${dirGhost} | -R$ ${valorUsado.toFixed(2)}`;
+            try {
+              if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification(tituloGhost, { body: corpoGhost, icon: '/icons/icon-192.png', vibrate: [200, 100, 200] } as NotificationOptions & { vibrate: number[] });
+              } else if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(tituloGhost, { body: corpoGhost, icon: '/icons/icon-192.png' });
+              }
+            } catch {}
+            if (supabaseUserId) {
+              fetch('/api/send-push-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: supabaseUserId, titulo: tituloGhost, mensagem: corpoGhost }),
+              }).catch(pushErr => console.error('[Vorna Ghost Push] ERRO:', pushErr));
+            }
           } else {
             // O robô aguardará a resposta OFICIAL da corretora no polling otimizado de alta frequência.
             return;
@@ -1214,13 +1236,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               })
               .catch(async err => {
                 console.error('[Q5min] Erro ao executar operação:', (err as Error)?.message ?? err);
-                ultimoExecutado5min.current = '';
+                // Guard NÃO é resetado aqui — aguardar saber se a op chegou no broker
                 try {
                   await new Promise(r => setTimeout(r, 2000));
                   const { operacoes: posAbertasBroker } = await verificarOperacoesAbertas();
                   const idsConhecidos = operacoesAbertasRef.current.map(op => String(op.id));
                   const novaPos = posAbertasBroker.find(op => op.id && !idsConhecidos.includes(op.id));
                   if (novaPos) {
+                    // Operação chegou no broker — manter guard travado para não disparar de novo
                     console.log(`[Q5min] Trade recuperado após erro de rede: id=${novaPos.id}`);
                     setOperacoesAbertas(prev => [...prev, {
                       id: novaPos.id,
@@ -1241,9 +1264,17 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                       resultado: null,
                       gale_nivel: 0,
                     }]);
+                    subscreverResultadoOperacao(novaPos.id, (res, pnl) => {
+                      resultadoPendenteRef.current.set(novaPos.id, { resultado: res, pnl });
+                      unsubResultadoRef.current.delete(novaPos.id);
+                    }).then(unsub => { if (unsub) unsubResultadoRef.current.set(novaPos.id, unsub); });
+                  } else {
+                    // Operação NÃO chegou — liberar guard para próximo slot
+                    ultimoExecutado5min.current = '';
                   }
                 } catch (recoveryErr) {
                   console.warn('[Q5min] Recovery check falhou:', (recoveryErr as Error)?.message);
+                  ultimoExecutado5min.current = '';
                 }
               });
           }, msAteVelaQ5);
