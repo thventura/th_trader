@@ -189,8 +189,13 @@ export async function comReconexao<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
-    if (err instanceof VornaErro && (err.codigo === 401 || err.codigo === 403)) {
-      console.warn('[Vorna] Sessão expirada, tentando reconexão...');
+    const deveReconectar = err instanceof VornaErro && (
+      err.codigo === 401 ||
+      err.codigo === 403 ||
+      (err.message ?? '').includes('Timeout ao enviar')
+    );
+    if (deveReconectar) {
+      console.warn('[Vorna] Sessão expirada ou timeout, tentando reconexão...');
       const reconectou = await reconectarVorna();
       if (reconectou) {
         return await fn();
@@ -384,6 +389,8 @@ export async function loginVorna(identifier: string, senha: string): Promise<Vor
   // O relay garantiu que o SSID é válido do ponto de vista do servidor.
   // Salvamos o SSID na sessão; operações de trading também passarão pelo relay.
   if (_sdk) { await _sdk.shutdown().catch(() => {}); _sdk = null; }
+  // Aguardar o servidor liberar o SSID antes de criar nova conexão SDK
+  await new Promise(r => setTimeout(r, 400));
   try {
     _sdk = await ClientSdk.create(VORNA_WS_URL, VORNA_PLATFORM_ID, new SsidAuthMethod(ssidObtido));
     console.log('[vorna] SDK conectado com SSID do relay.');
