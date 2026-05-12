@@ -371,7 +371,7 @@ export async function loginVorna(identifier: string, senha: string): Promise<Vor
     carteiras.push({
       tipo: 'REAL',
       saldo: relayData.saldoReal,
-      bonus: 0,
+      bonus: relayData.bonusReal ?? 0,
       rollover: 0,
       rollover_total: 0,
     });
