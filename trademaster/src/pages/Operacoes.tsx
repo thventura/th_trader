@@ -35,7 +35,8 @@ export default function Operacoes() {
     const active = wallets.find(c => c.tipo === 'REAL') ||
       wallets.find(c => c.tipo === 'USDT') ||
       wallets.find(c => c.tipo === 'DEMO');
-    return active?.saldo ?? sessao?.perfil?.saldo ?? null;
+    if (!active) return sessao?.perfil?.saldo ?? null;
+    return active.saldo + (active.bonus ?? 0);
   })();
 
   // ── Formulário de login mini ─────────────────────────────────────

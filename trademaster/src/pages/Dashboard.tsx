@@ -229,7 +229,8 @@ export default function Dashboard() {
     const active = wallets.find(c => c.tipo === 'REAL') ||
       wallets.find(c => c.tipo === 'USDT') ||
       wallets.find(c => c.tipo === 'DEMO');
-    return active?.saldo ?? sessao?.perfil?.saldo ?? undefined;
+    if (!active) return sessao?.perfil?.saldo ?? undefined;
+    return active.saldo + (active.bonus ?? 0);
   })();
   const bancaAtual = saldoPumaReal ?? parseFloat((bancaInicial + accountOps.reduce((s, op) => s + op.lucro, 0)).toFixed(2));
   const baseParaGrafico = saldoPumaReal !== undefined ? parseFloat((saldoPumaReal - totalLucro).toFixed(2)) : bancaInicial;

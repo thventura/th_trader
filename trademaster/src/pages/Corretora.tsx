@@ -2860,7 +2860,8 @@ function PainelCorretora({
     const active = carteiras.find(c => c.tipo === 'REAL') ||
       carteiras.find(c => c.tipo === 'USDT') ||
       carteiras.find(c => c.tipo === 'DEMO');
-    return active?.saldo ?? null;
+    if (!active) return null;
+    return active.saldo + (active.bonus ?? 0);
   })();
 
   const bancaAtualDisplay = saldoPumaReal ?? parseFloat((bancaInicial + totalLucroAll).toFixed(2));
