@@ -182,7 +182,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const saldoAnteriorRef = useRef<number>(0);
   const pollingRef = useRef<number | null>(null);
   // Cache de resultados recebidos via evento WebSocket nativo do SDK
-  const resultadoPendenteRef = useRef<Map<string, { resultado: 'vitoria' | 'derrota'; pnl: number }>>(new Map());
+  const resultadoPendenteRef = useRef<Map<string, { resultado: 'vitoria' | 'derrota' | 'empate'; pnl: number }>>(new Map());
   // Funções de cancelamento das subscrições ativas (por opId)
   const unsubResultadoRef = useRef<Map<string, () => void>>(new Map());
 
@@ -384,7 +384,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
   const timerRef = useRef<number | null>(null);
   const ultimoQuadranteExecutado = useRef<string>('');
-  const resultadoAnteriorRef = useRef<'vitoria' | 'derrota' | null>(null);
+  const resultadoAnteriorRef = useRef<'vitoria' | 'derrota' | 'empate' | null>(null);
   const valorAnteriorRef = useRef<number>(0);
   const processandoResultadoRef = useRef(false);
   const ultimaOpProcessadaIdRef = useRef<string | null>(null);
@@ -978,7 +978,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
             // 1. Event cache (resultado já recebido via WebSocket — sem req de rede)
             const resultadoEvento = resultadoPendenteRef.current.get(opFantasma.id);
-            let ghostResultado: 'vitoria' | 'derrota';
+            let ghostResultado: 'vitoria' | 'derrota' | 'empate';
             if (resultadoEvento) {
               ghostResultado = resultadoEvento.resultado;
               resultadoPendenteRef.current.delete(opFantasma.id);
@@ -1014,6 +1014,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 saldoP6Ref.current = novaBanca;
                 setBancaP6(novaBanca);
                 console.log(`[Q5min-Fantasma] P6 WIN → sessão reiniciada. Nova banca: ${novaBanca.toFixed(2)}`);
+              } else if (ghostResultado === 'empate') {
+                // Reembolso: nível mantido, atualizar banca do broker
+                const bancaAtual = await obterSaldoRapido(config.tipo_conta ?? 'REAL').catch(() => saldoP6Ref.current);
+                saldoP6Ref.current = bancaAtual;
+                setBancaP6(bancaAtual);
+                console.log(`[Q5min-Fantasma] EMPATE → nível L${cicloMartingaleRef.current} mantido, banca: ${bancaAtual.toFixed(2)}`);
               } else {
                 // LOSS confirmado: avançar nível P6
                 saldoP6Ref.current = Math.max(0.01, saldoP6Ref.current - valorUsado);
@@ -1042,10 +1048,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             }
 
             // Push remoto para celular (ghost handler)
-            const tituloGhost = ghostResultado === 'vitoria' ? 'Operação Fechada - WIN' : 'Operação Fechada - LOSS';
+            const tituloGhost = ghostResultado === 'vitoria' ? 'Operação Fechada - WIN'
+              : ghostResultado === 'empate' ? 'Operação Fechada - EMPATE'
+              : 'Operação Fechada - LOSS';
             const dirGhost = opFantasma.direcao === 'compra' ? 'COMPRA' : 'VENDA';
             const corpoGhost = ghostResultado === 'vitoria'
               ? `${config.ativo} | ${dirGhost} | +R$ ${(valorUsado * ((config.payout || 88) / 100)).toFixed(2)} | Payout ${config.payout}%`
+              : ghostResultado === 'empate'
+                ? `${config.ativo} | ${dirGhost} | Empate | Reembolso R$ ${valorUsado.toFixed(2)}`
               : `${config.ativo} | ${dirGhost} | -R$ ${valorUsado.toFixed(2)}`;
             try {
               if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -1495,7 +1505,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (Date.now() < checkAt) return;
 
         const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config?.valor_por_operacao || 0;
-        let resultado: 'vitoria' | 'derrota' = 'derrota';
+        let resultado: 'vitoria' | 'derrota' | 'empate' = 'derrota';
         let diferenca = -valorUsado;
         let saldoAposResultadoP6: number | null = null;
 
@@ -1536,7 +1546,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             resultado = sdkResult.resultado;
             diferenca = sdkResult.resultado === 'vitoria'
               ? valorUsado * ((automacao.config?.payout || 88) / 100)
-              : -valorUsado;
+              : sdkResult.resultado === 'empate'
+                ? 0
+                : -valorUsado;
             const saldoAux = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
             saldoAnteriorRef.current = saldoAux ?? saldoAnteriorRef.current;
             saldoAposResultadoP6 = saldoAux;
@@ -1549,12 +1561,18 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
             const diffP6 = saldoAtual - referenciaP6;
 
-            if (diffP6 > valorUsado * 0.3) {
+            if (diffP6 > valorUsado * 1.1) {
               resultado = 'vitoria';
               diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
               saldoAnteriorRef.current = saldoAtual;
               saldoAposResultadoP6 = saldoAtual;
               console.log(`[P6-Saldo] WIN | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
+            } else if (diffP6 > valorUsado * 0.5) {
+              resultado = 'empate';
+              diferenca = 0;
+              saldoAnteriorRef.current = saldoAtual;
+              saldoAposResultadoP6 = saldoAtual;
+              console.log(`[P6-Saldo] EMPATE | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
             } else if (msAposExpiracao < 45000) {
               // Aguarda até 45s para saldo Blitz atualizar (era 20s)
               return;
@@ -1612,7 +1630,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const msParaExpiracao = Math.max(0, optionCandleStart + duracaoOp - Date.now());
           if (msParaExpiracao > 0) await new Promise(r => setTimeout(r, msParaExpiracao));
 
-          let brokerResult: { resultado: 'vitoria' | 'derrota'; pnl: number } | null = null;
+          let brokerResult: { resultado: 'vitoria' | 'derrota' | 'empate'; pnl: number } | null = null;
           for (let tentativa = 0; tentativa < 10 && !brokerResult; tentativa++) {
             brokerResult = await obterResultadoOperacao(opId);
             if (!brokerResult) await new Promise(r => setTimeout(r, 500));
@@ -1735,6 +1753,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 }
                 return novas;
               });
+            } else if (resultado === 'empate') {
+              // Reembolso: ciclo e perdas sem alteração
+              const bancaAtual = saldoAposResultadoP6 ?? saldoP6Ref.current;
+              saldoP6Ref.current = bancaAtual;
+              setBancaP6(bancaAtual);
+              console.log(`[P6] EMPATE → nível L${nivelAtual} mantido, banca: ${bancaAtual.toFixed(2)}`);
             } else {
               perdasAcumuladasP6Ref.current += valorUsado;
               if (nivelAtual >= 5) {
@@ -1779,12 +1803,16 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           const direcaoNotif = opAtual.direcao || '';
           const tituloNotif = ehGaleProtegido
             ? `Gale G${galeLevelAtResult + 1} Ativado`
-            : resultado === 'vitoria' ? `Operação Fechada - WIN` : `Operação Fechada - LOSS`;
+            : resultado === 'vitoria' ? `Operação Fechada - WIN`
+            : resultado === 'empate' ? `Operação Fechada - EMPATE`
+            : `Operação Fechada - LOSS`;
           const corpoNotif = ehGaleProtegido
             ? `${ativoNotif} | ${direcaoNotif === 'compra' ? 'COMPRA' : 'VENDA'} | Gale G${galeLevelAtResult + 1} em andamento`
             : resultado === 'vitoria'
               ? `${ativoNotif} | ${direcaoNotif === 'compra' ? 'COMPRA' : 'VENDA'} | +R$ ${diferenca.toFixed(2)} | Payout ${automacao.config.payout}%`
-              : `${ativoNotif} | ${direcaoNotif === 'compra' ? 'COMPRA' : 'VENDA'} | -R$ ${valorUsado.toFixed(2)}`;
+            : resultado === 'empate'
+              ? `${ativoNotif} | ${direcaoNotif === 'compra' ? 'COMPRA' : 'VENDA'} | Empate | Reembolso R$ ${valorUsado.toFixed(2)}`
+            : `${ativoNotif} | ${direcaoNotif === 'compra' ? 'COMPRA' : 'VENDA'} | -R$ ${valorUsado.toFixed(2)}`;
           try {
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
               const reg = await navigator.serviceWorker.ready;

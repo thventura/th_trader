@@ -235,11 +235,14 @@ module.exports = async function handler(req, res) {
       const extrairResultado = (p) => {
         const status = (p.status || '').toLowerCase();
         if (status === 'win') return { resultado: 'vitoria', pnl: p.pnlNet || p.pnl || 0 };
-        if (status === 'loose' || status === 'draw') return { resultado: 'derrota', pnl: -(p.invest || p.price || 0) };
-        
+        if (status === 'draw') return { resultado: 'empate', pnl: 0 };
+        if (status === 'loose') return { resultado: 'derrota', pnl: -(p.invest || p.price || 0) };
+
         const pnl = (p.pnlNet ?? p.pnl ?? 0);
         const invest = (p.invest ?? p.price ?? 0);
-        return { resultado: pnl > 0 ? 'vitoria' : 'derrota', pnl: pnl > 0 ? pnl : -invest };
+        if (pnl > 0) return { resultado: 'vitoria', pnl };
+        if (pnl === 0) return { resultado: 'empate', pnl: 0 };
+        return { resultado: 'derrota', pnl: -invest };
       };
 
       const allPositions = positionsFacade.getAllPositions();
@@ -450,7 +453,12 @@ module.exports = async function handler(req, res) {
       const balances = balFacade.getBalances();
       const real = balances.find(b => b.type === 'real');
       const demo = balances.find(b => b.type === 'demo');
-      return res.json({ saldoReal: real?.amount ?? 0, saldoDemo: demo?.amount ?? 0 });
+      const bonus = balances.find(b => b.type === 'bonus');
+      return res.json({
+        saldoReal: (real?.amount ?? 0) + (bonus?.amount ?? 0),
+        saldoDemo: demo?.amount ?? 0,
+        saldoBonus: bonus?.amount ?? 0,
+      });
     } catch (err) {
       console.error('[vorna-relay] getSaldo erro:', err.message);
       return res.status(500).json({ error: err.message });

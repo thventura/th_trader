@@ -283,7 +283,7 @@ export interface OperacaoRow {
     mercado: 'forex' | 'cripto' | null;
     estrategia: string | null;
     direcao: 'compra' | 'venda' | null;
-    resultado: 'vitoria' | 'derrota' | null;
+    resultado: 'vitoria' | 'derrota' | 'empate' | null;
     investido: number;
     payout: number;
     lucro: number;

@@ -152,7 +152,7 @@ export interface Op {
   mercado: 'forex' | 'cripto';
   estrategia: string;
   direcao: 'compra' | 'venda';
-  resultado: 'vitoria' | 'derrota';
+  resultado: 'vitoria' | 'derrota' | 'empate';
   investido: number;
   payout: number;
   lucro: number;
@@ -286,7 +286,7 @@ export interface ResultadoFluxoVelas {
   timeframe: string;
   modo: '2-3' | '3+';
   direcao: 'compra' | 'venda';
-  resultado: 'vitoria' | 'derrota';
+  resultado: 'vitoria' | 'derrota' | 'empate';
   lucro: number;
   janela_horas: number;
 }
@@ -302,7 +302,7 @@ export interface Quadrante {
   fim_minuto: number;
   velas: Vela[];
   analise: AnaliseQuadrante | null;
-  resultado?: 'vitoria' | 'derrota' | null;
+  resultado?: 'vitoria' | 'derrota' | 'empate' | null;
 }
 
 export interface AnaliseQuadrante {
@@ -337,7 +337,7 @@ export interface Quadrante5min {
   fim_minuto: number;    // 4, 9, 14, ..., 59
   velas: Vela[];
   analise: AnaliseQuadrante5min | null;
-  resultado?: 'vitoria' | 'derrota' | null;
+  resultado?: 'vitoria' | 'derrota' | 'empate' | null;
   gale_nivel?: 0 | 1 | 2;
 }
 
@@ -446,7 +446,7 @@ export interface OperacaoLPDetalhada {
   ativo: string;
   direcao: 'compra' | 'venda';
   valor: number;
-  resultado?: 'vitoria' | 'derrota';
+  resultado?: 'vitoria' | 'derrota' | 'empate';
   lucro?: number;
   // Snapshot da análise no momento da execução
   resumo: string;

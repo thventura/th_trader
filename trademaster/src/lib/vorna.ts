@@ -543,7 +543,7 @@ export function limparConfigAutomacao(): void {
 export interface EstadoPersistido {
   automacao: EstadoAutomacao;
   saldoAnterior: number;
-  resultadoAnterior: 'vitoria' | 'derrota' | null;
+  resultadoAnterior: 'vitoria' | 'derrota' | 'empate' | null;
   valorAnterior: number;
   cicloMartingale: number;
   valorOperacaoAtual: number;
@@ -628,7 +628,7 @@ export function criarOperacaoQuadrante(params: {
   config: ConfigAutomacao;
   analise: AnaliseQuadrante;
   valor_operacao: number;
-  resultado: 'vitoria' | 'derrota';
+  resultado: 'vitoria' | 'derrota' | 'empate';
   lucro: number;
   quadrante: number;
   vornaOpId?: string;
@@ -666,7 +666,7 @@ export function criarOperacaoQuadrante5min(params: {
   config: ConfigAutomacao;
   analise: AnaliseQuadrante5min;
   valor_operacao: number;
-  resultado: 'vitoria' | 'derrota';
+  resultado: 'vitoria' | 'derrota' | 'empate';
   lucro: number;
   quadrante: number;
   gale_nivel: number;
@@ -702,7 +702,7 @@ export function criarOperacaoFluxoVelas(params: {
   config: ConfigAutomacao;
   direcao: 'compra' | 'venda';
   valor_operacao: number;
-  resultado: 'vitoria' | 'derrota';
+  resultado: 'vitoria' | 'derrota' | 'empate';
   lucro: number;
   vornaOpId?: string;
   vornaEmail?: string;
@@ -928,7 +928,12 @@ export async function obterSaldoRapido(tipo_conta: 'REAL' | 'DEMO' = 'REAL'): Pr
   if (_sdk) {
     const balancesFacade = await _sdk.balances();
     const balances = balancesFacade.getBalances();
-    saldo = balances.find(b => b.type === targetBalanceType)?.amount ?? 0;
+    const saldoBase = balances.find(b => b.type === targetBalanceType)?.amount ?? 0;
+    // Incluir bônus no saldo real (broker exibe total = depósito + bônus)
+    const saldoBonus = tipo_conta === 'REAL'
+      ? (balances.find(b => (b.type as string) === 'bonus')?.amount ?? 0)
+      : 0;
+    saldo = saldoBase + saldoBonus;
   } else {
     // Relay fallback: usa getSaldo com ssid (SDK cacheado, sem HTTP login)
     const sessaoAtiva = obterSessaoVorna();
@@ -940,6 +945,7 @@ export async function obterSaldoRapido(tipo_conta: 'REAL' | 'DEMO' = 'REAL'): Pr
     });
     if (!resp.ok) throw new VornaErro(`Erro ao obter saldo: ${resp.status}`);
     const data = await resp.json();
+    // saldoReal já inclui o bônus (somado no relay)
     saldo = tipo_conta === 'DEMO' ? (data.saldoDemo ?? 0) : (data.saldoReal ?? 0);
   }
 
@@ -1015,7 +1021,7 @@ export async function obterHistoricoOperacoes(): Promise<Op[]> {
 
 export async function subscreverResultadoOperacao(
   opId: string,
-  onResultado: (resultado: 'vitoria' | 'derrota', pnl: number) => void
+  onResultado: (resultado: 'vitoria' | 'derrota' | 'empate', pnl: number) => void
 ): Promise<(() => void) | null> {
   if (!_sdk) return null;
   try {
@@ -1043,8 +1049,8 @@ export async function subscreverResultadoOperacao(
 
       const pnl = pnlBruto as number;
       const invest = (position.invest ?? 0) as number;
-      const resultado: 'vitoria' | 'derrota' = pnl > 0 ? 'vitoria' : 'derrota';
-      const pnlFinal = pnl > 0 ? pnl : -invest;
+      const resultado: 'vitoria' | 'derrota' | 'empate' = pnl > 0 ? 'vitoria' : pnl === 0 ? 'empate' : 'derrota';
+      const pnlFinal = pnl > 0 ? pnl : pnl === 0 ? 0 : -invest;
       onResultado(resultado, pnlFinal);
     };
 
@@ -1057,7 +1063,7 @@ export async function subscreverResultadoOperacao(
 
 // ── Resultado Real de Operação via Histórico do SDK ──
 
-export async function obterResultadoOperacao(opId: string): Promise<{ resultado: 'vitoria' | 'derrota'; pnl: number } | null> {
+export async function obterResultadoOperacao(opId: string): Promise<{ resultado: 'vitoria' | 'derrota' | 'empate'; pnl: number } | null> {
   if (!_sdk) {
     const sessaoAtual = obterSessaoVorna();
     if (!sessaoAtual?.ssid) return null;
@@ -1069,7 +1075,7 @@ export async function obterResultadoOperacao(opId: string): Promise<{ resultado:
       });
       if (resp.ok) {
         const data = await resp.json();
-        if (data.resultado) return data as { resultado: 'vitoria' | 'derrota'; pnl: number };
+        if (data.resultado) return data as { resultado: 'vitoria' | 'derrota' | 'empate'; pnl: number };
       }
     } catch {
       // Ignora erro e retorna null abaixo
@@ -1094,7 +1100,9 @@ export async function obterResultadoOperacao(opId: string): Promise<{ resultado:
     const extrairResultado = (p: any) => {
       const pnl = ((p as any).pnlNet ?? (p as any).pnlRealized ?? (p as any).closeProfit ?? (p as any).pnl ?? 0) as number;
       const invest = ((p as any).invest ?? (p as any).price ?? 0) as number;
-      return { resultado: (pnl > 0 ? 'vitoria' : 'derrota') as 'vitoria' | 'derrota', pnl: pnl > 0 ? pnl : -invest };
+      if (pnl > 0) return { resultado: 'vitoria' as const, pnl };
+      if (pnl === 0) return { resultado: 'empate' as const, pnl: 0 };
+      return { resultado: 'derrota' as const, pnl: -invest };
     };
 
     if (posLive) return extrairResultado(posLive);

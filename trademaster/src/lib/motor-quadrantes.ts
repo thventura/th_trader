@@ -157,7 +157,7 @@ export function analisarQuadrante(velas: Vela[], velasHistorico: Vela[] = []): A
 export function calcularValorOperacao(params: {
   estrategia: Gerenciamento;
   valor_base: number;
-  resultado_anterior: 'vitoria' | 'derrota' | null;
+  resultado_anterior: 'vitoria' | 'derrota' | 'empate' | null;
   valor_anterior: number;
   multiplicador_martingale: number;
   multiplicador_soros: number;
@@ -184,6 +184,11 @@ export function calcularValorOperacao(params: {
     const nivel = Math.min(ciclo_martingale, 5);
     const entradas = calcularP6Entradas(capital, payout);
     return { valor: entradas[nivel], novo_ciclo: ciclo_martingale };
+  }
+
+  // Empate: repetir o mesmo valor e ciclo (sem avançar nem resetar)
+  if (resultado_anterior === 'empate') {
+    return { valor: valor_anterior, novo_ciclo: ciclo_martingale };
   }
 
   // Primeira operação ou sem resultado anterior (outros gerenciamentos)
