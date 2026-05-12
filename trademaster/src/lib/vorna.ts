@@ -339,6 +339,7 @@ export async function loginVorna(identifier: string, senha: string): Promise<Vor
     userId: string;
     saldoReal: number;
     saldoDemo: number;
+    bonusReal?: number;
     saldoRealId?: number;
     saldoDemoId?: number;
     afiliadoAprovado?: boolean;
@@ -414,7 +415,7 @@ export async function loginVorna(identifier: string, senha: string): Promise<Vor
     carteiras,
   };
 
-  const saldoReal = relayData.saldoReal ?? 0;
+  const saldoReal = (relayData.saldoReal ?? 0) + (relayData.bonusReal ?? 0);
   const saldoDemo = relayData.saldoDemo ?? 0;
 
   const perfil: VornaPerfilCompleto = {
@@ -928,11 +929,10 @@ export async function obterSaldoRapido(tipo_conta: 'REAL' | 'DEMO' = 'REAL'): Pr
   if (_sdk) {
     const balancesFacade = await _sdk.balances();
     const balances = balancesFacade.getBalances();
-    const saldoBase = balances.find(b => b.type === targetBalanceType)?.amount ?? 0;
-    // Incluir bônus no saldo real (broker exibe total = depósito + bônus)
-    const saldoBonus = tipo_conta === 'REAL'
-      ? (balances.find(b => (b.type as string) === 'bonus')?.amount ?? 0)
-      : 0;
+    const realBalance = balances.find(b => b.type === targetBalanceType);
+    const saldoBase = realBalance?.amount ?? 0;
+    // bonusAmount é uma propriedade do próprio objeto de saldo real (não tipo separado)
+    const saldoBonus = tipo_conta === 'REAL' ? ((realBalance as any)?.bonusAmount ?? 0) : 0;
     saldo = saldoBase + saldoBonus;
   } else {
     // Relay fallback: usa getSaldo com ssid (SDK cacheado, sem HTTP login)
@@ -945,8 +945,10 @@ export async function obterSaldoRapido(tipo_conta: 'REAL' | 'DEMO' = 'REAL'): Pr
     });
     if (!resp.ok) throw new VornaErro(`Erro ao obter saldo: ${resp.status}`);
     const data = await resp.json();
-    // saldoReal já inclui o bônus (somado no relay)
-    saldo = tipo_conta === 'DEMO' ? (data.saldoDemo ?? 0) : (data.saldoReal ?? 0);
+    // saldoReal = depósito; bonusReal = bônus separado — somar para obter total
+    saldo = tipo_conta === 'DEMO'
+      ? (data.saldoDemo ?? 0)
+      : (data.saldoReal ?? 0) + (data.bonusReal ?? 0);
   }
 
   const sessaoAtual = obterSessaoVorna();

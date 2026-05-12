@@ -105,23 +105,6 @@ async function httpLogin(identifier, password) {
     throw new Error(data.message || 'Credenciais inválidas');
   }
 
-  // Diagnóstico: tentar endpoints REST para encontrar saldo com bônus
-  const token = data.token;
-  if (token) {
-    const baseUrl = 'https://api.trade.vornabroker.com';
-    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-    const endpoints = ['/v2/profile', '/v2/user', '/v2/balance', '/v2/accounts', '/v2/wallets'];
-    for (const ep of endpoints) {
-      try {
-        const r = await fetch(`${baseUrl}${ep}`, { headers });
-        const j = await r.json().catch(() => null);
-        if (j) console.log(`[vorna-relay] ${ep} (${r.status}):`, JSON.stringify(j).slice(0, 500));
-      } catch (e) {
-        console.log(`[vorna-relay] ${ep} erro:`, e.message);
-      }
-    }
-  }
-
   return { ssid: data.ssid, userId: String(data.user_id), companyId: data.company_id };
 }
 
@@ -470,11 +453,10 @@ module.exports = async function handler(req, res) {
       const balances = balFacade.getBalances();
       const real = balances.find(b => b.type === 'real');
       const demo = balances.find(b => b.type === 'demo');
-      const bonus = balances.find(b => b.type === 'bonus');
       return res.json({
-        saldoReal: (real?.amount ?? 0) + (bonus?.amount ?? 0),
+        saldoReal: real?.amount ?? 0,
         saldoDemo: demo?.amount ?? 0,
-        saldoBonus: bonus?.amount ?? 0,
+        bonusReal: real?.bonusAmount ?? 0,
       });
     } catch (err) {
       console.error('[vorna-relay] getSaldo erro:', err.message);
@@ -502,13 +484,11 @@ module.exports = async function handler(req, res) {
       sdk = await classes.ClientSdk.create(VORNA_WS_URL, PLATFORM_ID, new classes.SsidAuthMethod(ssid));
       const balancesFacade = await sdk.balances();
       const bals = balancesFacade.getBalances();
-      console.log(`[vorna-relay] Todos os saldos:`, JSON.stringify(bals.map(b => ({ type: b.type, amount: b.amount }))));
 
       const real = bals.find(b => b.type === 'real');
       const demo = bals.find(b => b.type === 'demo');
-      const bonus = bals.find(b => b.type === 'bonus');
 
-      console.log(`[vorna-relay] Saldos: Real=${real?.amount ?? 0}, Demo=${demo?.amount ?? 0}, Bonus=${bonus?.amount ?? 0}`);
+      console.log(`[vorna-relay] Saldos: Real=${real?.amount ?? 0}, Demo=${demo?.amount ?? 0}, Bonus=${real?.bonusAmount ?? 0}`);
 
       // Verificar se userId está na lista de afiliados aprovados
       let afiliadoAprovado = false;
@@ -540,9 +520,9 @@ module.exports = async function handler(req, res) {
       return res.json({
         ssid,
         userId,
-        saldoReal: (real?.amount ?? 0) + (bonus?.amount ?? 0),
+        saldoReal: real?.amount ?? 0,
         saldoDemo: demo?.amount ?? 0,
-        saldoBonus: bonus?.amount ?? 0,
+        bonusReal: real?.bonusAmount ?? 0,
         saldoRealId: real?.id,
         saldoDemoId: demo?.id,
         afiliadoAprovado,
