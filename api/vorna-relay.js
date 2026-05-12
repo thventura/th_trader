@@ -488,8 +488,9 @@ module.exports = async function handler(req, res) {
 
       const real = bals.find(b => b.type === 'real');
       const demo = bals.find(b => b.type === 'demo');
+      const bonus = bals.find(b => b.type === 'bonus');
 
-      console.log(`[vorna-relay] Saldos: Real=${real?.amount ?? 0}, Demo=${demo?.amount ?? 0}`);
+      console.log(`[vorna-relay] Saldos: Real=${real?.amount ?? 0}, Demo=${demo?.amount ?? 0}, Bonus=${bonus?.amount ?? 0}`);
 
       // Verificar se userId está na lista de afiliados aprovados
       let afiliadoAprovado = false;
@@ -521,8 +522,9 @@ module.exports = async function handler(req, res) {
       return res.json({
         ssid,
         userId,
-        saldoReal: real?.amount ?? 0,
+        saldoReal: (real?.amount ?? 0) + (bonus?.amount ?? 0),
         saldoDemo: demo?.amount ?? 0,
+        saldoBonus: bonus?.amount ?? 0,
         saldoRealId: real?.id,
         saldoDemoId: demo?.id,
         afiliadoAprovado,
