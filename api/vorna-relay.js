@@ -105,6 +105,10 @@ async function httpLogin(identifier, password) {
     throw new Error(data.message || 'Credenciais inválidas');
   }
 
+  // Log diagnóstico: ver todos os campos retornados pelo login HTTP (sem expor ssid/senha)
+  const { ssid: _s, password: _p, ...dataLog } = data;
+  console.log('[vorna-relay] HTTP login response keys:', JSON.stringify(dataLog));
+
   return { ssid: data.ssid, userId: String(data.user_id), companyId: data.company_id };
 }
 
