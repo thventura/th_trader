@@ -485,6 +485,7 @@ module.exports = async function handler(req, res) {
       sdk = await classes.ClientSdk.create(VORNA_WS_URL, PLATFORM_ID, new classes.SsidAuthMethod(ssid));
       const balancesFacade = await sdk.balances();
       const bals = balancesFacade.getBalances();
+      console.log(`[vorna-relay] Todos os saldos:`, JSON.stringify(bals.map(b => ({ type: b.type, amount: b.amount }))));
 
       const real = bals.find(b => b.type === 'real');
       const demo = bals.find(b => b.type === 'demo');
