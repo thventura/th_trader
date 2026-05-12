@@ -105,9 +105,22 @@ async function httpLogin(identifier, password) {
     throw new Error(data.message || 'Credenciais inválidas');
   }
 
-  // Log diagnóstico: ver todos os campos retornados pelo login HTTP (sem expor ssid/senha)
-  const { ssid: _s, password: _p, ...dataLog } = data;
-  console.log('[vorna-relay] HTTP login response keys:', JSON.stringify(dataLog));
+  // Diagnóstico: tentar endpoints REST para encontrar saldo com bônus
+  const token = data.token;
+  if (token) {
+    const baseUrl = 'https://api.trade.vornabroker.com';
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const endpoints = ['/v2/profile', '/v2/user', '/v2/balance', '/v2/accounts', '/v2/wallets'];
+    for (const ep of endpoints) {
+      try {
+        const r = await fetch(`${baseUrl}${ep}`, { headers });
+        const j = await r.json().catch(() => null);
+        if (j) console.log(`[vorna-relay] ${ep} (${r.status}):`, JSON.stringify(j).slice(0, 500));
+      } catch (e) {
+        console.log(`[vorna-relay] ${ep} erro:`, e.message);
+      }
+    }
+  }
 
   return { ssid: data.ssid, userId: String(data.user_id), companyId: data.company_id };
 }
