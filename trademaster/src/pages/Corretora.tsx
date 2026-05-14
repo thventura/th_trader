@@ -200,6 +200,20 @@ function PainelAutomacao({
     }
   );
 
+  // Corrige estratégia/gerenciamento se não estiver disponível após carregar config da plataforma
+  useEffect(() => {
+    setForm(prev => {
+      const estrategiaOk = configPlataforma.estrategias_ativas.includes(prev.estrategia as EstrategiaAnalise);
+      const gerenciamentoOk = configPlataforma.gerenciamentos_ativos.includes(prev.gerenciamento as any);
+      if (estrategiaOk && gerenciamentoOk) return prev;
+      return {
+        ...prev,
+        estrategia: estrategiaOk ? prev.estrategia : (configPlataforma.estrategias_ativas[0] ?? prev.estrategia),
+        gerenciamento: gerenciamentoOk ? prev.gerenciamento : (configPlataforma.gerenciamentos_ativos[0] ?? prev.gerenciamento),
+      };
+    });
+  }, [configPlataforma]);
+
   // Sincroniza o form com o ativo global quando este muda
   useEffect(() => {
     setForm(prev => ({ ...prev, ativo: ativoSelecionado }));
