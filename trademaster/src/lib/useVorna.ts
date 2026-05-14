@@ -58,6 +58,7 @@ import {
   ehMomentoDeExecutarCavaloTroia,
   proximoHorarioExecucaoCavaloTroia,
 } from './motor-cavalo-troia';
+import { analisarContinuacaoVelas } from './motor-continuacao-velas';
 import type {
   VornaSessao,
   VornaEstadoConexao,
@@ -71,6 +72,7 @@ import type {
   AnaliseLogicaPreco,
   OperacaoLPDetalhada,
   AnaliseImpulsoCorrecaoEngolfo,
+  AnaliseContinuacaoVelas,
   Profile,
 } from '../types';
 import type { OperacaoAberta } from './vorna';
@@ -143,6 +145,8 @@ export interface UseVornaRetorno {
   historicoLP: OperacaoLPDetalhada[];
   // Impulso-Correção-Engolfo
   analiseICE: AnaliseImpulsoCorrecaoEngolfo | null;
+  // Continuação de Velas + SMA 9
+  analiseContinuacaoVelas: AnaliseContinuacaoVelas | null;
   // Seleção Global
   ativoSelecionado: string;
   setAtivoSelecionado: (a: string) => void;
@@ -276,6 +280,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const [analiseICE, setAnaliseICE] = useState<AnaliseImpulsoCorrecaoEngolfo | null>(null);
   const ultimoSinalICERef = useRef<string>('');
   const operacaoICEEmAndamentoRef = useRef<boolean>(false);
+
+  // Continuação de Velas + SMA 9
+  const [analiseCVelas, setAnaliseCVelas] = useState<AnaliseContinuacaoVelas | null>(null);
+  const ultimoSinalCVelasRef = useRef<string>('');
+  const operacaoCVelasEmAndamentoRef = useRef<boolean>(false);
 
   // Sincroniza localStorage quando muda
   useEffect(() => {
@@ -489,7 +498,18 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         }
       }
 
-      if (config?.estrategia === 'Quadrantes5min') {
+      if (config?.estrategia === 'ContinuacaoVelas') {
+        const agoraSegundos = Math.floor(Date.now() / 1000);
+        if (agoraSegundos > utimoVelaSegundosRef.current) {
+          utimoVelaSegundosRef.current = agoraSegundos;
+          setTimeout(() => {
+            const analise = analisarContinuacaoVelas(velas);
+            setAnaliseCVelas(analise);
+          }, 0);
+        }
+      }
+
+            if (config?.estrategia === 'Quadrantes5min') {
         const agora = new Date();
         const minutos = agora.getMinutes();
         const numQ5 = obterQuadranteAtual5min(minutos);
@@ -824,6 +844,101 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           console.error('[ICE] Erro no envio:', err);
           operacaoICEEmAndamentoRef.current = false;
           ultimoSinalICERef.current = '';
+        });
+    }, 250);
+
+    return () => clearInterval(intervalId);
+  }, [automacao.status, automacao.config, automacao.lucro_acumulado, automacao.perda_acumulada, automacao.operacoes_executadas, automacao.operacoes_total, modoVPS]);
+
+  // ── Tick de Execução ContinuacaoVelas ──
+  useEffect(() => {
+    if (automacao.status !== 'em_operacao') return;
+    const config = automacao.config;
+    if (!config || config.estrategia !== 'ContinuacaoVelas') return;
+    if (modoVPS && vpsOnlineRef.current) return;
+
+    const intervalId = window.setInterval(() => {
+      const velas = velasAtuaisRef.current;
+      if (velas.length === 0) return;
+
+      if (operacaoCVelasEmAndamentoRef.current) return;
+
+      const agora = new Date();
+      const segundos = agora.getSeconds();
+
+      // Gate: entra nos primeiros 3 segundos da vela para garantir que o candle anterior já fechou
+      if (segundos > 3) return;
+
+      const analise = analisarContinuacaoVelas(velas);
+
+      if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
+      if (ultimoSinalCVelasRef.current === analise.sinal_id) return;
+      ultimoSinalCVelasRef.current = analise.sinal_id;
+
+      if (operacoesAbertasRef.current.length > 0) {
+        const opF = operacoesAbertasRef.current[0];
+        if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
+          console.warn('[CVelas] Operação fantasma detectada. Limpando.');
+          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opF.id));
+        }
+        return;
+      }
+
+      const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
+      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+
+      if (atingiuMeta || atingiuStop || atingiuLimite) return;
+
+      const { valor, novo_ciclo } = calcularValorOperacao({
+        estrategia: config.gerenciamento,
+        valor_base: config.valor_por_operacao,
+        resultado_anterior: resultadoAnteriorRef.current,
+        valor_anterior: valorAnteriorRef.current || config.valor_por_operacao,
+        multiplicador_martingale: config.multiplicador_martingale,
+        multiplicador_soros: config.multiplicador_soros,
+        payout: config.payout,
+        ciclo_martingale: cicloMartingaleRef.current,
+        max_martingale: config.max_martingale,
+        banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+      });
+
+      setCicloMartingale(novo_ciclo);
+      setValorOperacaoAtual(valor);
+      valorAnteriorRef.current = valor;
+
+      operacaoCVelasEmAndamentoRef.current = true;
+
+      const totalSegundosNoHora = agora.getMinutes() * 60 + agora.getSeconds();
+      const duracaoCandle: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, M60: 3600 };
+      const candleDuracao = duracaoCandle[config.timeframe] || 60;
+      const segundosDesdeInicio = totalSegundosNoHora % candleDuracao;
+      const duracao = Math.max(5, candleDuracao - segundosDesdeInicio);
+
+      console.log(`[CVelas] >>> SINAL ${analise.direcao_operacao?.toUpperCase()} | SMA9=${analise.sma_9?.toFixed(5)} | Confiança=${analise.confianca}%`);
+
+      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+        .then(async id => {
+          console.log(`[CVelas] Ordem enviada! ID: ${id}`);
+          setOperacoesAbertas(prev => [...prev, {
+            id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: new Date().toISOString(), duracao, status: 'enviada',
+          }]);
+          try {
+            const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
+            saldoAnteriorRef.current = saldoAposEnvio + valor;
+          } catch {
+            saldoAnteriorRef.current -= valor;
+          }
+          setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+          subscreverResultadoOperacao(id, (res, pnl) => {
+            resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+            unsubResultadoRef.current.delete(id);
+          }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
+        })
+        .catch(err => {
+          console.error('[CVelas] Erro no envio:', err);
+          operacaoCVelasEmAndamentoRef.current = false;
+          ultimoSinalCVelasRef.current = '';
         });
     }, 250);
 
@@ -2466,6 +2581,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     analiseLogicaPreco: analiseLP,
     historicoLP,
     analiseICE,
+    analiseContinuacaoVelas: analiseCVelas,
     ativoSelecionado,
     setAtivoSelecionado,
     timeframeSelecionado,

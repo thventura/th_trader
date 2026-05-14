@@ -164,7 +164,7 @@ export interface Op {
 // ── Automação VornaBroker ──
 
 // FORK: ao adicionar/remover estratégias em src/config/branding.ts, atualize este tipo também.
-export type EstrategiaAnalise = 'Quadrantes' | 'Quadrantes5min' | 'FluxoVelas' | 'LogicaDoPreco' | 'ImpulsoCorrecaoEngolfo' | 'CavaloTroia';
+export type EstrategiaAnalise = 'Quadrantes' | 'Quadrantes5min' | 'FluxoVelas' | 'LogicaDoPreco' | 'ImpulsoCorrecaoEngolfo' | 'CavaloTroia' | 'ContinuacaoVelas';
 export type Gerenciamento = 'Fixo' | 'Martingale' | 'Soros' | 'P6';
 export type StatusAutomacao = 'aguardando' | 'em_operacao' | 'pausado' | 'finalizado';
 export type ModoFluxo = '2-3' | '3+' | 'automatico';
@@ -455,6 +455,22 @@ export interface OperacaoLPDetalhada {
   dominio: 'compra' | 'venda' | 'indefinido';
   conceitos: string[];
   sinais: { conceito: string; descricao: string; confianca: number }[];
+}
+
+// ── Continuação de Velas + SMA 9 ──
+
+export interface AnaliseContinuacaoVelas {
+  operar: boolean;
+  direcao_operacao: 'compra' | 'venda' | null;
+  confianca: number;
+  sinal_id: string | null;
+  ultima_vela_cor: 'alta' | 'baixa' | 'doji' | null;
+  sma_9: number | null;
+  preco_atual: number | null;
+  preco_acima_sma: boolean | null;
+  sma_inclinacao: 'subindo' | 'descendo' | 'neutra' | null;
+  motivo_bloqueio: string | null;
+  explicacao: string;
 }
 
 export interface ManutencaoConfig {

@@ -370,6 +370,7 @@ function PainelAutomacao({
                 {configPlataforma.estrategias_ativas.includes('LogicaDoPreco') && <option value="LogicaDoPreco">{nomeExibido('LogicaDoPreco')}</option>}
                 {configPlataforma.estrategias_ativas.includes('ImpulsoCorrecaoEngolfo') && <option value="ImpulsoCorrecaoEngolfo">{nomeExibido('ImpulsoCorrecaoEngolfo')}</option>}
                 {configPlataforma.estrategias_ativas.includes('CavaloTroia') && <option value="CavaloTroia">{nomeExibido('CavaloTroia')}</option>}
+                {configPlataforma.estrategias_ativas.includes('ContinuacaoVelas') && <option value="ContinuacaoVelas">{nomeExibido('ContinuacaoVelas')}</option>}
               </select>
             </div>
             <div>
@@ -2803,6 +2804,7 @@ function PainelCorretora({
   analiseLogicaPreco,
   historicoLP,
   analiseICE,
+  analiseContinuacaoVelas,
   ativoSelecionado,
   setAtivoSelecionado,
   timeframeSelecionado,
@@ -2838,6 +2840,7 @@ function PainelCorretora({
   analiseLogicaPreco: AnaliseLogicaPreco | null;
   historicoLP: OperacaoLPDetalhada[];
   analiseICE: AnaliseImpulsoCorrecaoEngolfo | null;
+  analiseContinuacaoVelas: import('../types').AnaliseContinuacaoVelas | null;
   ativoSelecionado: string;
   setAtivoSelecionado: (a: string) => void;
   timeframeSelecionado: string;
@@ -3358,7 +3361,60 @@ function PainelCorretora({
         </div>
       )}
 
-      {/* Quadrantes 10min (visível quando automação ativa) */}
+      {/* ContinuacaoVelas + SMA 9 */}
+      {automacao.config?.estrategia === 'ContinuacaoVelas' && analiseContinuacaoVelas && (
+        <div className="space-y-3 p-4 bg-violet-500/5 border border-violet-500/15 rounded-xl">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-violet-400 uppercase tracking-wider">Continuação de Velas + SMA 9</p>
+            <span className={cn('px-2 py-0.5 rounded text-xs font-bold',
+              analiseContinuacaoVelas.operar
+                ? (analiseContinuacaoVelas.direcao_operacao === 'compra' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400')
+                : 'bg-slate-700/50 text-slate-500'
+            )}>
+              {analiseContinuacaoVelas.operar
+                ? `${analiseContinuacaoVelas.direcao_operacao === 'compra' ? 'CALL' : 'PUT'} — ${analiseContinuacaoVelas.confianca}%`
+                : 'Aguardando sinal'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-3 bg-slate-800/50 rounded-lg">
+              <p className="text-xs text-slate-500 mb-1">Último Candle</p>
+              <p className={cn('text-sm font-bold',
+                analiseContinuacaoVelas.ultima_vela_cor === 'alta' ? 'text-emerald-400'
+                : analiseContinuacaoVelas.ultima_vela_cor === 'baixa' ? 'text-red-400'
+                : 'text-yellow-400'
+              )}>
+                {analiseContinuacaoVelas.ultima_vela_cor === 'alta' ? 'VERDE' : analiseContinuacaoVelas.ultima_vela_cor === 'baixa' ? 'VERMELHO' : 'DOJI'}
+              </p>
+            </div>
+            <div className="p-3 bg-slate-800/50 rounded-lg">
+              <p className="text-xs text-slate-500 mb-1">Preço vs SMA 9</p>
+              <p className={cn('text-sm font-bold', analiseContinuacaoVelas.preco_acima_sma ? 'text-emerald-400' : 'text-red-400')}>
+                {analiseContinuacaoVelas.preco_acima_sma === null ? '—' : analiseContinuacaoVelas.preco_acima_sma ? 'ACIMA' : 'ABAIXO'}
+              </p>
+            </div>
+            <div className="p-3 bg-slate-800/50 rounded-lg">
+              <p className="text-xs text-slate-500 mb-1">SMA 9</p>
+              <p className={cn('text-sm font-bold',
+                analiseContinuacaoVelas.sma_inclinacao === 'subindo' ? 'text-emerald-400'
+                : analiseContinuacaoVelas.sma_inclinacao === 'descendo' ? 'text-red-400'
+                : 'text-yellow-400'
+              )}>
+                {analiseContinuacaoVelas.sma_9?.toFixed(5) ?? '—'}
+                {analiseContinuacaoVelas.sma_inclinacao === 'subindo' ? ' ↑' : analiseContinuacaoVelas.sma_inclinacao === 'descendo' ? ' ↓' : ' →'}
+              </p>
+            </div>
+          </div>
+
+          {analiseContinuacaoVelas.motivo_bloqueio && (
+            <p className="text-xs text-amber-400/80">⚠ {analiseContinuacaoVelas.motivo_bloqueio}</p>
+          )}
+          <p className="text-xs text-slate-400">{analiseContinuacaoVelas.explicacao}</p>
+        </div>
+      )}
+
+            {/* Quadrantes 10min (visível quando automação ativa) */}
       {automacao.config?.estrategia === 'Quadrantes' && (automacao.status === 'em_operacao' || automacao.status === 'pausado') && (
         <SecaoQuadrantes
           quadranteAtual={quadranteAtual}
@@ -3434,6 +3490,7 @@ export default function Corretora() {
     analiseLogicaPreco,
     historicoLP,
     analiseICE,
+    analiseContinuacaoVelas,
     ativoSelecionado,
     setAtivoSelecionado,
     timeframeSelecionado,
@@ -3493,6 +3550,7 @@ export default function Corretora() {
           analiseLogicaPreco={analiseLogicaPreco}
           historicoLP={historicoLP}
           analiseICE={analiseICE}
+          analiseContinuacaoVelas={analiseContinuacaoVelas}
           ativoSelecionado={ativoSelecionado}
           setAtivoSelecionado={setAtivoSelecionado}
           timeframeSelecionado={timeframeSelecionado}
