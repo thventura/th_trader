@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Op } from '../types';
+import type { Op, ConfigAutomacaoPlataforma } from '../types';
 
 // ─── Cache em memória com TTL + deduplicação de requisições ─────────
 const cache = new Map<string, { data: any; expira: number }>();
@@ -776,4 +776,22 @@ export function rowToOp(row: OperacaoRow): Op {
         timeframe: row.timeframe || '',
         confianca: row.confianca || 50,
     };
+}
+
+// ─── Config Automação Plataforma (admin → alunos) ────────────────────
+export async function obterConfigPlataforma(): Promise<ConfigAutomacaoPlataforma | null> {
+    const { data, error } = await supabase
+        .from('plataforma_config')
+        .select('config')
+        .eq('id', 'automacao')
+        .single();
+    if (error || !data) return null;
+    return data.config as ConfigAutomacaoPlataforma;
+}
+
+export async function salvarConfigPlataforma(config: ConfigAutomacaoPlataforma): Promise<void> {
+    const { error } = await supabase
+        .from('plataforma_config')
+        .upsert({ id: 'automacao', config, updated_at: new Date().toISOString() });
+    if (error) throw error;
 }

@@ -46,7 +46,7 @@ import { servicoVelas } from '../lib/websocket-velas';
 import { analisarQuadrante } from '../lib/motor-quadrantes';
 import { obterAtivosDisponiveis, obterSessaoVorna, obterVelasViaRelay } from '../lib/vorna';
 import MetricsGestaoP6 from './MetricsGestaoP6';
-import { Comentario, Questao, ConfigProva, EstrategiaAnalise, Gerenciamento, ConfigAutomacaoPlataforma, AUTOMACAO_PLATAFORMA_KEY, CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT, ManutencaoConfig } from '../types';
+import { Comentario, Questao, ConfigProva, EstrategiaAnalise, Gerenciamento, ConfigAutomacaoPlataforma, CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT, ManutencaoConfig } from '../types';
 import MetricsFluxoVelasContent from './MetricsFluxoVelas';
 import MetricsLogicaPrecoContent from './MetricsLogicaPreco';
 import MetricsImpulsoCorrecaoEngolfoContent from './MetricsImpulsoCorrecaoEngolfo';
@@ -63,6 +63,7 @@ import {
   deleteTodasOperacoesUsuario, updateCopyTradeAtivo,
   getModulos as fetchModulosAdmin,
   criarAlunoManual,
+  obterConfigPlataforma, salvarConfigPlataforma,
   type ProfileRow,
   type OperacaoRow,
 } from '../lib/supabaseService';
@@ -201,15 +202,10 @@ export default function Admin() {
   };
   const [estrategiaMetricas, setEstrategiaMetricas] = React.useState<EstrategiaAnalise>('Quadrantes');
 
-  // Config de automação da plataforma (localStorage)
-  const [configAutomacao, setConfigAutomacao] = React.useState<ConfigAutomacaoPlataforma>(() => {
-    try {
-      const saved = localStorage.getItem(AUTOMACAO_PLATAFORMA_KEY);
-      return saved ? JSON.parse(saved) : { ...CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT };
-    } catch {
-      return { ...CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT };
-    }
-  });
+  // Config de automação da plataforma (Supabase)
+  const [configAutomacao, setConfigAutomacao] = React.useState<ConfigAutomacaoPlataforma>(
+    { ...CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT }
+  );
   const [automacaoSalvo, setAutomacaoSalvo] = React.useState(false);
   const [selectedProfile, setSelectedProfile] = React.useState<ProfileRow | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -356,6 +352,12 @@ export default function Admin() {
         .map(a => a.displayName);
       if (disponiveis.length > 0) setAtivosPadrao(disponiveis);
     }).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    obterConfigPlataforma().then(cfg => {
+      if (cfg) setConfigAutomacao(cfg);
+    });
   }, []);
 
   // Load all admin data from Supabase
@@ -2828,10 +2830,14 @@ export default function Admin() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    localStorage.setItem(AUTOMACAO_PLATAFORMA_KEY, JSON.stringify(configAutomacao));
-                    setAutomacaoSalvo(true);
-                    setTimeout(() => setAutomacaoSalvo(false), 3000);
+                  onClick={async () => {
+                    try {
+                      await salvarConfigPlataforma(configAutomacao);
+                      setAutomacaoSalvo(true);
+                      setTimeout(() => setAutomacaoSalvo(false), 3000);
+                    } catch (err) {
+                      console.error('[Admin] Erro ao salvar config automação:', err);
+                    }
                   }}
                   className="px-6 py-3 bg-apex-trader-primary text-black font-bold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
                 >

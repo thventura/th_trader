@@ -43,6 +43,7 @@ import { LaserFlow } from '../components/ui/laser-focus-crypto-hero-section';
 import { useVorna } from '../lib/useVorna';
 import { useData } from '../contexts/DataContext';
 import { obterConfigAutomacao } from '../lib/vorna';
+import { obterConfigPlataforma } from '../lib/supabaseService';
 import type { ActiveInfo } from '../lib/vorna';
 
 import { formatCurrency, cn } from '../lib/utils';
@@ -57,7 +58,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import SecaoMetricasEstrategia from '../components/MetricasEstrategia';
 import type { VornaCarteira, ConfigAutomacao, EstadoAutomacao, Quadrante, EstadoWebSocket, Vela, EstadoFluxoVelas, AnaliseFluxoVelas, AnaliseLogicaPreco, OperacaoLPDetalhada, AnaliseImpulsoCorrecaoEngolfo } from '../types';
-import { AUTOMACAO_PLATAFORMA_KEY, CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT, type ConfigAutomacaoPlataforma, type EstrategiaAnalise } from '../types';
+import { CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT, type ConfigAutomacaoPlataforma, type EstrategiaAnalise } from '../types';
 import type { OperacaoAberta } from '../lib/vorna';
 
 const BROKER_URL = 'https://trade.vornabroker.com/register?aff=821404&aff_model=revenue&afftrack=';
@@ -166,13 +167,13 @@ function PainelAutomacao({
   bancaP6: number;
   perdasAcumuladasP6: number;
 }) {
-  const configPlataforma: ConfigAutomacaoPlataforma = React.useMemo(() => {
-    try {
-      const saved = localStorage.getItem(AUTOMACAO_PLATAFORMA_KEY);
-      return saved ? JSON.parse(saved) : { ...CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT };
-    } catch {
-      return { ...CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT };
-    }
+  const [configPlataforma, setConfigPlataforma] = React.useState<ConfigAutomacaoPlataforma>(
+    { ...CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT }
+  );
+  React.useEffect(() => {
+    obterConfigPlataforma().then(cfg => {
+      if (cfg) setConfigPlataforma(cfg);
+    });
   }, []);
 
   const nomeExibido = (key: EstrategiaAnalise) =>
