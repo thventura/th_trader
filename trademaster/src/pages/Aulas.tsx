@@ -336,7 +336,6 @@ export default function Aulas({ userRole, modulosLiberados }: AulasProps) {
       const payload: any = {
         ...formNovoModulo,
         ordem: modulos.length + 1,
-        progresso: 0,
       };
       
       const saved = await upsertModulo(payload);
