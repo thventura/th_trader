@@ -819,6 +819,7 @@ function PainelAutomacao({
           {form.estrategia === 'Quadrantes5min' && (
             <div className="space-y-3 p-4 bg-emerald-500/5 border border-emerald-500/15 rounded-xl">
               <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Configurações — Quadrantes 5min</p>
+              {form.gerenciamento !== 'P6' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-slate-400 mb-1.5 block">Máx. Proteção</label>
@@ -859,6 +860,7 @@ function PainelAutomacao({
                   />
                 </div>
               </div>
+              )}
               <label className="flex items-center gap-3 cursor-pointer">
                 <div
                   onClick={() => !emOperacao && setForm(prev => ({ ...prev, modo_continuo: !prev.modo_continuo }))}
