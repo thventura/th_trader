@@ -2808,6 +2808,7 @@ export default function Admin() {
                     { value: 'Fixo' as Gerenciamento, label: 'Fixo' },
                     { value: 'Martingale' as Gerenciamento, label: 'Proteção' },
                     { value: 'Soros' as Gerenciamento, label: 'Soros' },
+                    { value: 'P6' as Gerenciamento, label: 'P6' },
                   ] as { value: Gerenciamento; label: string }[]).map(ger => (
                     <label key={ger.value} className="flex items-center gap-3 cursor-pointer group">
                       <input
