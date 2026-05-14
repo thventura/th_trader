@@ -1728,6 +1728,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             && resultado === 'derrota'
             && gale5minRef.current.ativo;
           // Liberar operação imediatamente para o tick checar o gale
+          // Re-verificar após awaits: se o ghost handler já processou esta op, não duplicar o ciclo
+          if (ultimaOpProcessadaIdRef.current === opId) {
+            setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opId));
+            return;
+          }
           ultimaOpProcessadaIdRef.current = opId;
           setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opId));
 
