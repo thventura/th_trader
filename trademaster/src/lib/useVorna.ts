@@ -880,7 +880,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const usarAntecipar = ehM1CV && segundos >= 57;
       const sinalVelaIdx = usarAntecipar ? velas.length - 1 : velas.length - 2;
       const sinalVelaTs = velas[sinalVelaIdx]?.timestamp ?? 0;
-      const sinalVelaTsNorm = sinalVelaTs > 1e9 ? sinalVelaTs / 1000 : sinalVelaTs;
+      const sinalVelaTsNorm = sinalVelaTs > 1e11 ? sinalVelaTs / 1000 : sinalVelaTs;
 
       const analise = analisarContinuacaoVelas(velas, usarAntecipar);
 
@@ -948,7 +948,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const velasNoDisparo = velasAtuaisRef.current;
         if (velasNoDisparo.length >= 2) {
           const ultimaNoDisparo = velasNoDisparo[velasNoDisparo.length - 1];
-          const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e9
+          const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e11
             ? ultimaNoDisparo.timestamp / 1000
             : ultimaNoDisparo?.timestamp ?? 0;
           // Se relay ainda mostra o candle de sinal como o último → antecipar=true (usa velas[length-1])
