@@ -83,10 +83,8 @@ export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas
         return { ...nenhum, explicacao: 'Aguardando velas suficientes para calcular SMA 9.' };
     }
 
-    // Candle de sinal: penúltimo (definitivamente fechado mesmo que não haja vela em formação)
+    // Candle de sinal: penúltimo (definitivamente fechado)
     const ultimaVela = velas[velas.length - 2];
-    // Preço atual: último elemento do array (pode ser formando ou o mais recente fechado)
-    const velaAtual = velas[velas.length - 1];
 
     // SMA calculada sobre todos os candles até o de sinal (inclusive)
     const fechamentos = velas.slice(0, velas.length - 1).map(v => v.fechamento);
@@ -98,8 +96,8 @@ export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas
 
     const smaAtual = smas[smas.length - 1];
     const corVela = classificarVela(ultimaVela);
-    // Usa o preço mais recente disponível (vela em formação ou última fechada)
-    const precoAtual = velaAtual.fechamento;
+    // Usa o fechamento da vela de sinal para comparar com a SMA
+    const precoAtual = ultimaVela.fechamento;
     const precoAcimaSma = precoAtual > smaAtual;
     const inclinacao = calcularInclinacaoSMA(smas);
 
@@ -126,12 +124,6 @@ export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas
 
     if (smaEstaLateral(smas)) {
         return bloquear('SMA 9 está lateral/neutra');
-    }
-
-    // Verificar se o preço está cruzando a SMA (dentro de 0.05% da SMA = zona de cruzamento)
-    const distanciaSma = Math.abs(precoAtual - smaAtual) / (smaAtual || 1);
-    if (distanciaSma < 0.0005) {
-        return bloquear('Preço cruzando a SMA 9');
     }
 
     // ── Validação de força da vela ──
@@ -171,10 +163,6 @@ export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas
         (direcao === 'compra' && inclinacao === 'subindo') ||
         (direcao === 'venda' && inclinacao === 'descendo');
     if (inclinacaoAlinhada) confianca += 20;
-
-    // Bônus por distância da SMA (mais longe = tendência mais definida)
-    const bonusDistancia = Math.min(20, Math.round(distanciaSma / 0.001));
-    confianca += bonusDistancia;
 
     confianca = Math.min(100, confianca);
 
