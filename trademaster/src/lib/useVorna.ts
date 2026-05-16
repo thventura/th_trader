@@ -857,16 +857,27 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     if (!config || config.estrategia !== 'ContinuacaoVelas') return;
     if (modoVPS && vpsOnlineRef.current) return;
 
+    const duracaoCandleMap: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, M60: 3600 };
+    const ehM1CV = config.timeframe === 'M1';
+
     const intervalId = window.setInterval(() => {
       const velas = velasAtuaisRef.current;
-      if (velas.length === 0) return;
-
+      if (velas.length < 2) return;
       if (operacaoCVelasEmAndamentoRef.current) return;
 
-      const analise = analisarContinuacaoVelas(velas);
+      const agora = new Date();
+      const segundos = agora.getSeconds();
+
+      // M1: pré-aquecer conexão aos 54s e gate de análise aos 57-59s (vela prestes a fechar)
+      if (ehM1CV) {
+        if (segundos >= 54 && segundos < 57) { preAquecerConexao(); return; }
+        if (segundos < 57) return;
+      }
+
+      // M1 usa antecipar=true (analisa vela formando), outros usam false (última fechada)
+      const analise = analisarContinuacaoVelas(velas, ehM1CV);
 
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
-      // Deduplicação por sinal_id: só entra quando um novo candle fechado aparecer
       if (ultimoSinalCVelasRef.current === analise.sinal_id) return;
       ultimoSinalCVelasRef.current = analise.sinal_id;
 
@@ -901,44 +912,61 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       setCicloMartingale(novo_ciclo);
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
-
       operacaoCVelasEmAndamentoRef.current = true;
 
-      const agora = new Date();
-      const totalSegundosNoHora = agora.getMinutes() * 60 + agora.getSeconds();
-      const duracaoCandle: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, M60: 3600 };
-      const candleDuracao = duracaoCandle[config.timeframe] || 60;
-      const segundosDesdeInicio = totalSegundosNoHora % candleDuracao;
-      const duracao = Math.max(5, candleDuracao - segundosDesdeInicio);
+      // M1: agendar para o segundo 0 exato do próximo candle
+      preAquecerConexao();
+      if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
+      const msAteVelaCV = ehM1CV
+        ? Math.max(0, (60 - agora.getSeconds()) * 1000 - agora.getMilliseconds())
+        : 0;
+      const horaEnvioCV = ehM1CV
+        ? new Date(Math.ceil(agora.getTime() / 60000) * 60000).toISOString()
+        : new Date().toISOString();
 
-      console.log(`[CVelas] >>> SINAL ${analise.direcao_operacao?.toUpperCase()} | SMA9=${analise.sma_9?.toFixed(5)} | Confiança=${analise.confianca}%`);
+      console.log(`[CVelas] >>> SINAL ${analise.direcao_operacao?.toUpperCase()} | SMA9=${analise.sma_9?.toFixed(5)} | Agendado +${Math.round(msAteVelaCV)}ms`);
 
-      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
-        .then(async id => {
-          console.log(`[CVelas] Ordem enviada! ID: ${id}`);
-          setOperacoesAbertas(prev => [...prev, {
-            id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: new Date().toISOString(), duracao, status: 'enviada',
-          }]);
-          try {
-            const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
-            saldoAnteriorRef.current = saldoAposEnvio + valor;
-          } catch {
-            saldoAnteriorRef.current -= valor;
-          }
-          setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
-          subscreverResultadoOperacao(id, (res, pnl) => {
-            resultadoPendenteRef.current.set(id, { resultado: res, pnl });
-            unsubResultadoRef.current.delete(id);
-          }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
-        })
-        .catch(err => {
-          console.error('[CVelas] Erro no envio:', err);
-          operacaoCVelasEmAndamentoRef.current = false;
-          ultimoSinalCVelasRef.current = '';
-        });
+      pendingEntryTimerRef.current = window.setTimeout(() => {
+        pendingEntryTimerRef.current = null;
+        const agoraEnvio = new Date();
+        const totalSegCV = agoraEnvio.getMinutes() * 60 + agoraEnvio.getSeconds();
+        const candleDuracaoCV = duracaoCandleMap[config.timeframe] || 60;
+        const segundosDesdeCV = totalSegCV % candleDuracaoCV;
+        const duracao = Math.max(5, candleDuracaoCV - segundosDesdeCV);
+
+        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+          .then(async id => {
+            console.log(`[CVelas] Ordem enviada! ID: ${id}`);
+            setOperacoesAbertas(prev => [...prev, {
+              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioCV, duracao, status: 'enviada',
+            }]);
+            try {
+              const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
+              saldoAnteriorRef.current = saldoAposEnvio + valor;
+            } catch {
+              saldoAnteriorRef.current -= valor;
+            }
+            setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+            subscreverResultadoOperacao(id, (res, pnl) => {
+              resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+              unsubResultadoRef.current.delete(id);
+            }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
+          })
+          .catch(err => {
+            console.error('[CVelas] Erro no envio:', err);
+            operacaoCVelasEmAndamentoRef.current = false;
+            ultimoSinalCVelasRef.current = '';
+          });
+      }, msAteVelaCV);
     }, 250);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      if (pendingEntryTimerRef.current !== null) {
+        clearTimeout(pendingEntryTimerRef.current);
+        pendingEntryTimerRef.current = null;
+      }
+    };
   }, [automacao.status, automacao.config, automacao.lucro_acumulado, automacao.perda_acumulada, automacao.operacoes_executadas, automacao.operacoes_total, modoVPS]);
 
   // Timer principal: 1 segundo (ativo durante automação)

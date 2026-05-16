@@ -62,7 +62,9 @@ function calcularInclinacaoSMA(smas: number[]): 'subindo' | 'descendo' | 'neutra
     return 'neutra';
 }
 
-export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas {
+// antecipar=true: usa a vela em formação como sinal (para gate pré-fechamento em M1)
+// antecipar=false (padrão): usa a última vela fechada
+export function analisarContinuacaoVelas(velas: Vela[], antecipar = false): AnaliseContinuacaoVelas {
     const nenhum: AnaliseContinuacaoVelas = {
         operar: false,
         direcao_operacao: null,
@@ -77,18 +79,17 @@ export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas
         explicacao: 'Aguardando dados...',
     };
 
-    // Precisamos de ao menos SMA_PERIODO + 2 velas para análise robusta
-    // velas[length-1] pode ser o candle em formação — usamos sempre velas[length-2] como
-    // candle de sinal (definitivamente fechado) e velas[length-1] para preço atual.
-    if (velas.length < SMA_PERIODO + 2) {
+    const minVelas = antecipar ? SMA_PERIODO + 1 : SMA_PERIODO + 2;
+    if (velas.length < minVelas) {
         return { ...nenhum, explicacao: 'Aguardando velas suficientes para calcular SMA 9.' };
     }
 
-    // Candle de sinal: penúltimo (definitivamente fechado)
-    const ultimaVela = velas[velas.length - 2];
+    // Índice do candle de sinal
+    const idxSinal = antecipar ? velas.length - 1 : velas.length - 2;
+    const ultimaVela = velas[idxSinal];
 
-    // SMA calculada sobre todos os candles até o de sinal (inclusive)
-    const fechamentos = velas.slice(0, velas.length - 1).map(v => v.fechamento);
+    // SMA calculada sobre os candles até o de sinal (inclusive)
+    const fechamentos = velas.slice(0, idxSinal + 1).map(v => v.fechamento);
     const smas = calcularSMA(fechamentos, SMA_PERIODO);
 
     if (smas.length < 3) {
