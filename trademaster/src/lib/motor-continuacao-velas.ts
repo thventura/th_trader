@@ -76,13 +76,20 @@ export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas
         explicacao: 'Aguardando dados...',
     };
 
-    // Precisamos de ao menos SMA_PERIODO + 2 velas fechadas para análise robusta
-    const fechadas = velas.filter((_, i) => i < velas.length - 1); // exclui vela em formação
-    if (fechadas.length < SMA_PERIODO + 2) {
+    // Precisamos de ao menos SMA_PERIODO + 2 velas para análise robusta
+    // velas[length-1] pode ser o candle em formação — usamos sempre velas[length-2] como
+    // candle de sinal (definitivamente fechado) e velas[length-1] para preço atual.
+    if (velas.length < SMA_PERIODO + 2) {
         return { ...nenhum, explicacao: 'Aguardando velas suficientes para calcular SMA 9.' };
     }
 
-    const fechamentos = fechadas.map(v => v.fechamento);
+    // Candle de sinal: penúltimo (definitivamente fechado mesmo que não haja vela em formação)
+    const ultimaVela = velas[velas.length - 2];
+    // Preço atual: último elemento do array (pode ser formando ou o mais recente fechado)
+    const velaAtual = velas[velas.length - 1];
+
+    // SMA calculada sobre todos os candles até o de sinal (inclusive)
+    const fechamentos = velas.slice(0, velas.length - 1).map(v => v.fechamento);
     const smas = calcularSMA(fechamentos, SMA_PERIODO);
 
     if (smas.length < 3) {
@@ -90,9 +97,9 @@ export function analisarContinuacaoVelas(velas: Vela[]): AnaliseContinuacaoVelas
     }
 
     const smaAtual = smas[smas.length - 1];
-    const ultimaVela = fechadas[fechadas.length - 1];
     const corVela = classificarVela(ultimaVela);
-    const precoAtual = ultimaVela.fechamento;
+    // Usa o preço mais recente disponível (vela em formação ou última fechada)
+    const precoAtual = velaAtual.fechamento;
     const precoAcimaSma = precoAtual > smaAtual;
     const inclinacao = calcularInclinacaoSMA(smas);
 

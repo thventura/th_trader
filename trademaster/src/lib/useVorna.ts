@@ -863,15 +863,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       if (operacaoCVelasEmAndamentoRef.current) return;
 
-      const agora = new Date();
-      const segundos = agora.getSeconds();
-
-      // Gate: entra nos primeiros 3 segundos da vela para garantir que o candle anterior já fechou
-      if (segundos > 3) return;
-
       const analise = analisarContinuacaoVelas(velas);
 
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
+      // Deduplicação por sinal_id: só entra quando um novo candle fechado aparecer
       if (ultimoSinalCVelasRef.current === analise.sinal_id) return;
       ultimoSinalCVelasRef.current = analise.sinal_id;
 
@@ -909,6 +904,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       operacaoCVelasEmAndamentoRef.current = true;
 
+      const agora = new Date();
       const totalSegundosNoHora = agora.getMinutes() * 60 + agora.getSeconds();
       const duracaoCandle: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, M60: 3600 };
       const candleDuracao = duracaoCandle[config.timeframe] || 60;
