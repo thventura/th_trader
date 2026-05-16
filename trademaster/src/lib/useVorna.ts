@@ -887,13 +887,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
       if (ultimoSinalCVelasRef.current === analise.sinal_id) return;
-      ultimoSinalCVelasRef.current = analise.sinal_id;
 
       if (operacoesAbertasRef.current.length > 0) {
         const opF = operacoesAbertasRef.current[0];
         if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
           console.warn('[CVelas] Operação fantasma detectada. Limpando.');
           setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opF.id));
+          operacaoCVelasEmAndamentoRef.current = false;
         }
         return;
       }
@@ -916,6 +916,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         max_martingale: config.max_martingale,
         banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
       });
+
+      // Só marca o sinal como usado quando todos os guards passaram — evita bloquear
+      // o candle inteiro caso a op anterior ainda não tivesse fechado no gate de 57-59s
+      ultimoSinalCVelasRef.current = analise.sinal_id;
 
       setCicloMartingale(novo_ciclo);
       setValorOperacaoAtual(valor);
