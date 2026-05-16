@@ -1466,6 +1466,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       }
 
       // ── Quadrantes 10min (lógica original) ──
+      if (config.estrategia !== 'Quadrantes') return;
+
       const prox = proximoHorarioExecucao();
       setSegundosRestantes(prox.segundosRestantes);
       setCountdownTexto(formatarCountdown(prox.segundosRestantes));
