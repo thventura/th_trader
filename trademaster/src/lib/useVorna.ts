@@ -574,7 +574,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[FluxoVelas] >>> GATILHO TICK AOS ${segundos}s! <<<`);
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
       const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) {
@@ -680,7 +680,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[LogicaDoPreco] >>> PADRÃO DETECTADO às ${agora.toLocaleTimeString()}! <<<`);
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
       const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
@@ -785,7 +785,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       }
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
       const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
@@ -880,7 +880,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       }
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
       const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
@@ -980,7 +980,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
         if (ehMomentoDeExecutarCavaloTroia()) {
           const atingiuMetaCT = config.meta != null && automacao.lucro_acumulado >= config.meta;
-          const atingiuStopCT = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+          const atingiuStopCT = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
           const atingiuLimiteCT = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
           if (atingiuMetaCT || atingiuStopCT || atingiuLimiteCT) {
             console.warn(`[CavaloTroia] 🛑 Condição de encerramento no pré-execução: Meta=${atingiuMetaCT}, Stop=${atingiuStopCT}, Limite=${atingiuLimiteCT}`);
@@ -1214,7 +1214,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (!devEntrar && galeFinal.ativo && !galeFinal.disparado && galeFinal.minutoAlvo >= 0) {
           if (ehMomentoDeGale5min(galeFinal.minutoAlvo)) {
             const atingiuMetaGale = config.meta != null && automacao.lucro_acumulado >= config.meta;
-            const atingiuStopGale = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+            const atingiuStopGale = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
             if (atingiuMetaGale || atingiuStopGale) {
               console.warn(`[Q5min] 🛑 Meta ou stop atingido no pré-gale: Meta=${atingiuMetaGale}, Stop=${atingiuStopGale}`);
               return;
@@ -1264,7 +1264,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           if (ultimoExecutado5min.current === chave) return;
 
           const atingiuMetaQ5 = config.meta != null && automacao.lucro_acumulado >= config.meta;
-          const atingiuStopQ5 = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+          const atingiuStopQ5 = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
           if (atingiuMetaQ5 || atingiuStopQ5) {
             console.warn(`[Q5min] 🛑 Meta ou stop atingido no pré-entrada: Meta=${atingiuMetaQ5}, Stop=${atingiuStopQ5}`);
             return;
@@ -1438,7 +1438,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (ultimoQuadranteExecutado.current === chaveExecucao) return;
 
         const atingiuMetaQ = config.meta != null && automacao.lucro_acumulado >= config.meta;
-        const atingiuStopQ = config.gerenciamento !== 'P6' && automacao.perda_acumulada >= (config.valor_stop || Infinity);
+        const atingiuStopQ = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
         const atingiuLimiteQ = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
         if (atingiuMetaQ || atingiuStopQ || atingiuLimiteQ) {
           console.warn(`[Quadrante] 🛑 Condição de encerramento no pré-execução: Meta=${atingiuMetaQ}, Stop=${atingiuStopQ}, Limite=${atingiuLimiteQ}`);
@@ -2136,7 +2136,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             ? automacao.perda_acumulada + Math.abs(diferenca)
             : automacao.perda_acumulada;
           const atingiuMetaNotif = automacao.config?.meta != null && novoLucroPreview >= automacao.config.meta;
-          const atingiuStopNotif = automacao.config?.gerenciamento !== 'P6' && !ehGaleProtegido && novaPerdaPreview >= (automacao.config?.valor_stop || Infinity);
+          const atingiuStopNotif = automacao.config?.gerenciamento !== 'P6' && !ehGaleProtegido && (novaPerdaPreview - novoLucroPreview) >= (automacao.config?.valor_stop || Infinity);
 
           if (atingiuMetaNotif || atingiuStopNotif) {
             const tituloFim = atingiuMetaNotif ? 'Meta Atingida!' : 'Stop Atingido';
@@ -2164,7 +2164,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             const novoExecutadas = prev.operacoes_executadas + 1;
             const novoLucro = diferenca > 0 ? prev.lucro_acumulado + diferenca : prev.lucro_acumulado;
             const novaPerda = (!ehGaleProtegido && diferenca < 0) ? prev.perda_acumulada + Math.abs(diferenca) : prev.perda_acumulada;
-            const atingiuStop = prev.config?.gerenciamento !== 'P6' && !ehGaleProtegido && novaPerda >= (prev.config?.valor_stop || Infinity);
+            const atingiuStop = prev.config?.gerenciamento !== 'P6' && !ehGaleProtegido && (novaPerda - novoLucro) >= (prev.config?.valor_stop || Infinity);
             const atingiuMeta = prev.config?.meta != null && novoLucro >= prev.config.meta;
             const ehQ5min = prev.config?.estrategia === 'Quadrantes5min';
             const atingiuLimite = prev.config?.gerenciamento !== 'P6' && !ehQ5min && !prev.config?.modo_continuo && novoExecutadas >= prev.operacoes_total;
