@@ -2122,6 +2122,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             operacaoICEEmAndamentoRef.current = false;
           }
 
+          if (automacao.config?.estrategia === 'ContinuacaoVelas') {
+            operacaoCVelasEmAndamentoRef.current = false;
+          }
+
           // Atualizar resultado no histórico (FluxoVelas)
           if (automacao.config?.estrategia === 'FluxoVelas') {
             const opFluxo = criarOperacaoFluxoVelas({
@@ -2464,6 +2468,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       ultimoSinalLPRef.current = '';
       operacaoLPEmAndamentoRef.current = false;
       ultimaExecucaoLPRef.current = 0;
+      ultimoSinalCVelasRef.current = '';
+      operacaoCVelasEmAndamentoRef.current = false;
       const intervalMap: Record<string, string> = { M1: '1', M5: '5', M15: '15', M30: '30', M60: '60' };
       servicoVelas.conectar(config.ativo, intervalMap[config.timeframe] || '1');
       setAutomacao({
@@ -2573,6 +2579,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     setAnaliseICE(null);
     ultimoSinalICERef.current = '';
     operacaoICEEmAndamentoRef.current = false;
+    setAnaliseCVelas(null);
+    ultimoSinalCVelasRef.current = '';
+    operacaoCVelasEmAndamentoRef.current = false;
     setCicloMartingale(0);
     setValorOperacaoAtual(0);
   }, []);
