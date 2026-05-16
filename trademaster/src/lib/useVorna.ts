@@ -874,8 +874,16 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (segundos < 57) return;
       }
 
-      // M1 usa antecipar=true (analisa vela formando), outros usam false (última fechada)
-      const analise = analisarContinuacaoVelas(velas, ehM1CV);
+      // Só usa antecipar=true se velas[length-1] é realmente o candle formando do minuto atual
+      const ultimaVelaArr = velas[velas.length - 1];
+      const minuteStartSec = Math.floor(Date.now() / 60000) * 60;
+      const velaTs = ultimaVelaArr?.timestamp > 1e9
+        ? ultimaVelaArr.timestamp / 1000
+        : ultimaVelaArr?.timestamp ?? 0;
+      const velaEhFormando = Math.abs(velaTs - minuteStartSec) < 60;
+      const usarAntecipar = ehM1CV && segundos >= 57 && velaEhFormando;
+
+      const analise = analisarContinuacaoVelas(velas, usarAntecipar);
 
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
       if (ultimoSinalCVelasRef.current === analise.sinal_id) return;
@@ -955,7 +963,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           .catch(err => {
             console.error('[CVelas] Erro no envio:', err);
             operacaoCVelasEmAndamentoRef.current = false;
-            ultimoSinalCVelasRef.current = '';
+            // sinal_id mantido: se falhou, aguarda o próximo candle sem retry no timing errado
           });
       }, msAteVelaCV);
     }, 250);
@@ -1651,6 +1659,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // ── Detecção de resultado ──
         const ehP6 = automacao.config?.gerenciamento === 'P6';
         const ehBlitz =
+          automacao.config?.instrumento_tipo === 'blitz' ||
           automacao.config?.estrategia === 'Quadrantes5min' ||
           automacao.config?.estrategia === 'CavaloTroia' ||
           automacao.config?.estrategia === 'Quadrantes';

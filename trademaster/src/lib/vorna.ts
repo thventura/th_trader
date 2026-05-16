@@ -1051,8 +1051,13 @@ export async function subscreverResultadoOperacao(
 
       const pnl = pnlBruto as number;
       const invest = (position.invest ?? 0) as number;
-      const resultado: 'vitoria' | 'derrota' | 'empate' = pnl > 0 ? 'vitoria' : pnl === 0 ? 'empate' : 'derrota';
-      const pnlFinal = pnl > 0 ? pnl : pnl === 0 ? 0 : -invest;
+      // pnlNet = payout - stake (pode ser negativo em WIN quando payout < 100%)
+      const resultado: 'vitoria' | 'derrota' | 'empate' = invest > 0
+        ? (pnl === 0 ? 'empate' : pnl > -invest ? 'vitoria' : 'derrota')
+        : (pnl > 0 ? 'vitoria' : pnl === 0 ? 'empate' : 'derrota');
+      const pnlFinal = resultado === 'vitoria'
+        ? (invest > 0 ? pnl + invest : pnl)
+        : resultado === 'derrota' ? -Math.max(invest, Math.abs(pnl)) : 0;
       onResultado(resultado, pnlFinal);
     };
 
@@ -1102,9 +1107,15 @@ export async function obterResultadoOperacao(opId: string): Promise<{ resultado:
     const extrairResultado = (p: any) => {
       const pnl = ((p as any).pnlNet ?? (p as any).pnlRealized ?? (p as any).closeProfit ?? (p as any).pnl ?? 0) as number;
       const invest = ((p as any).invest ?? (p as any).price ?? 0) as number;
-      if (pnl > 0) return { resultado: 'vitoria' as const, pnl };
-      if (pnl === 0) return { resultado: 'empate' as const, pnl: 0 };
-      return { resultado: 'derrota' as const, pnl: -invest };
+      // pnlNet = payout - stake (pode ser negativo mesmo em WIN quando payout < 100%)
+      // WIN real: recebeu algum payout, ou seja pnl > -invest
+      const resultado: 'vitoria' | 'derrota' | 'empate' = invest > 0
+        ? (pnl === 0 ? 'empate' : pnl > -invest ? 'vitoria' : 'derrota')
+        : (pnl > 0 ? 'vitoria' : pnl === 0 ? 'empate' : 'derrota');
+      const pnlFinal = resultado === 'vitoria'
+        ? (invest > 0 ? pnl + invest : pnl)
+        : resultado === 'derrota' ? -Math.max(invest, Math.abs(pnl)) : 0;
+      return { resultado, pnl: pnlFinal };
     };
 
     if (posLive) return extrairResultado(posLive);
