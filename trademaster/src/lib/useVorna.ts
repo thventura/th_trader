@@ -874,19 +874,21 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (segundos < 57) return;
       }
 
-      // Só usa antecipar=true se velas[length-1] é realmente o candle formando do minuto atual
-      const ultimaVelaArr = velas[velas.length - 1];
-      const minuteStartSec = Math.floor(Date.now() / 60000) * 60;
-      const velaTs = ultimaVelaArr?.timestamp > 1e9
-        ? ultimaVelaArr.timestamp / 1000
-        : ultimaVelaArr?.timestamp ?? 0;
-      const velaEhFormando = Math.abs(velaTs - minuteStartSec) < 60;
-      const usarAntecipar = ehM1CV && segundos >= 57 && velaEhFormando;
+      // M1: usa antecipar=true sempre no gate (57-59s)
+      // - relay fresco: velas[length-1] é o candle quase-fechando → analisa corretamente
+      // - relay stale: velas[length-1] é o último candle fechado → melhor que velas[length-2] (ainda mais antigo)
+      const usarAntecipar = ehM1CV && segundos >= 57;
+      const sinalVelaIdx = usarAntecipar ? velas.length - 1 : velas.length - 2;
+      const sinalVelaTs = velas[sinalVelaIdx]?.timestamp ?? 0;
+      const sinalVelaTsNorm = sinalVelaTs > 1e9 ? sinalVelaTs / 1000 : sinalVelaTs;
 
       const analise = analisarContinuacaoVelas(velas, usarAntecipar);
 
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
       if (ultimoSinalCVelasRef.current === analise.sinal_id) return;
+
+      // Rejeita sinal de candle com mais de 2 minutos (relay muito stale, dado obsoleto)
+      if (sinalVelaTsNorm > 0 && Date.now() / 1000 - sinalVelaTsNorm > 120) return;
 
       if (operacoesAbertasRef.current.length > 0) {
         const opF = operacoesAbertasRef.current[0];
@@ -940,6 +942,26 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
+
+        // Confirmação no disparo: verificar que o candle de sinal fechou conforme esperado.
+        // O candle pode ter virado doji ou revertido nos 3s finais antes do fechamento.
+        const velasNoDisparo = velasAtuaisRef.current;
+        if (velasNoDisparo.length >= 2) {
+          const ultimaNoDisparo = velasNoDisparo[velasNoDisparo.length - 1];
+          const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e9
+            ? ultimaNoDisparo.timestamp / 1000
+            : ultimaNoDisparo?.timestamp ?? 0;
+          // Se relay ainda mostra o candle de sinal como o último → antecipar=true (usa velas[length-1])
+          // Se relay já avançou com novo candle formando → antecipar=false (usa velas[length-2] = candle de sinal)
+          const sinalAindaNoFinal = Math.abs(ultimaTsDisparo - sinalVelaTsNorm) < 60;
+          const analiseDisparo = analisarContinuacaoVelas(velasNoDisparo, sinalAindaNoFinal);
+          if (!analiseDisparo.operar || analiseDisparo.direcao_operacao !== analise.direcao_operacao) {
+            console.warn(`[CVelas] Sinal cancelado no disparo: ${analiseDisparo.motivo_bloqueio ?? analiseDisparo.explicacao}`);
+            operacaoCVelasEmAndamentoRef.current = false;
+            return;
+          }
+        }
+
         const agoraEnvio = new Date();
         const totalSegCV = agoraEnvio.getMinutes() * 60 + agoraEnvio.getSeconds();
         const candleDuracaoCV = duracaoCandleMap[config.timeframe] || 60;
