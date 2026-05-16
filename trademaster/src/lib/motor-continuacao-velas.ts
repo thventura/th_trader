@@ -17,7 +17,7 @@ export interface AnaliseContinuacaoVelas {
 const SMA_PERIODO = 9;
 const LIMIAR_DOJI_CORPO = 0.20;       // corpo < 20% do range total = doji
 const LIMIAR_FORCA_MINIMA = 0.50;     // fechamento deve estar acima/abaixo de 50% da vela
-const LIMIAR_INCLINACAO_NEUTRA = 0.0001; // SMA muda menos que 0.01% → considerada reta
+const LIMIAR_INCLINACAO_NEUTRA = 0.000005; // SMA muda menos que 0.0005% → considerada reta
 
 function calcularSMA(fechamentos: number[], periodo: number): number[] {
     if (fechamentos.length < periodo) return [];
@@ -46,9 +46,10 @@ function velaTemForca(vela: Vela, direcao: 'alta' | 'baixa'): boolean {
 }
 
 function smaEstaLateral(smas: number[]): boolean {
-    if (smas.length < 3) return true;
-    const ultimas = smas.slice(-3);
-    const variacao = Math.abs(ultimas[2] - ultimas[0]) / (Math.abs(ultimas[0]) || 1);
+    const janela = Math.min(5, smas.length);
+    if (janela < 2) return true;
+    const ultimas = smas.slice(-janela);
+    const variacao = Math.abs(ultimas[janela - 1] - ultimas[0]) / (Math.abs(ultimas[0]) || 1);
     return variacao < LIMIAR_INCLINACAO_NEUTRA;
 }
 
