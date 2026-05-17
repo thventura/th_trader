@@ -893,11 +893,15 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       if (operacoesAbertasRef.current.length > 0) {
         const opF = operacoesAbertasRef.current[0];
         if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
-          console.warn('[CVelas] Operação fantasma detectada. Limpando.');
-          setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opF.id));
+          // Fantasma: libera o flag para novo sinal, mas NÃO remove a op — o polling loop
+          // vai detectar, buscar o resultado via broker/vela, registrar WIN/LOSS corretamente
+          // e só então remover. Isso evita operações "sumindo" sem contar no histórico.
+          console.warn(`[CVelas] Op ${opF.id} travada. Liberando flag — polling registrará o resultado.`);
           operacaoCVelasEmAndamentoRef.current = false;
+          // Não retorna: permite novo sinal enquanto polling resolve a op travada
+        } else {
+          return; // Op normal em andamento — aguarda resultado
         }
-        return;
       }
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
@@ -1677,7 +1681,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const expiracaoReal = enviada + duracaoOp;
         // Começar a verificar 2s antes da expiração real
         const checkAt = expiracaoReal - 2000;
-        if (Date.now() < checkAt) return;
+        const ehOpTravada = tempoDecorrido > duracaoOp + 90000; // op aberta há mais de duracao+90s
+        if (Date.now() < checkAt && !ehOpTravada) return;
 
         const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config?.valor_por_operacao || 0;
         let resultado: 'vitoria' | 'derrota' | 'empate' = 'derrota';
