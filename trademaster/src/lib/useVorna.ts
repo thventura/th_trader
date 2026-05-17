@@ -1695,7 +1695,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           automacao.config?.instrumento_tipo === 'blitz' ||
           automacao.config?.estrategia === 'Quadrantes5min' ||
           automacao.config?.estrategia === 'CavaloTroia' ||
-          automacao.config?.estrategia === 'Quadrantes';
+          automacao.config?.estrategia === 'Quadrantes' ||
+          automacao.config?.estrategia === 'ContinuacaoVelas';
 
         if (automacao.config?.gerenciamento === 'P6') {
           // 0. Evento WebSocket nativo — processa IMEDIATAMENTE, sem throttle
