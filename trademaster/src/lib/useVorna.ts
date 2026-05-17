@@ -1818,9 +1818,14 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             if (!brokerResult) await new Promise(r => setTimeout(r, 500));
           }
 
-          if (brokerResult) {
-            resultado = brokerResult.resultado;
-            diferenca = brokerResult.pnl;
+          // Empate com pnl=0 significa posição ainda não liquidada pelo broker (in-flight).
+          // Para Blitz já expirado, confiar no vela fallback que usa direção do candle.
+          const brokerConfiavel = brokerResult &&
+            !(brokerResult.resultado === 'empate' && brokerResult.pnl === 0);
+
+          if (brokerConfiavel) {
+            resultado = brokerResult!.resultado;
+            diferenca = brokerResult!.pnl;
             console.log(`[Corretora-Result] ${automacao.config?.estrategia} -> ${resultado.toUpperCase()} | PnL: ${diferenca.toFixed(2)}`);
           } else {
             const todasVelasF = servicoVelas.obterTodasVelas();
