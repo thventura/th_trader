@@ -2745,6 +2745,7 @@ export default function Admin() {
                     { value: 'ImpulsoCorrecaoEngolfo' as EstrategiaAnalise, label: 'Impulso-Correção-Engolfo' },
                     { value: 'CavaloTroia' as EstrategiaAnalise, label: 'Cavalo de Troia (M2, 20min)' },
                     { value: 'ContinuacaoVelas' as EstrategiaAnalise, label: 'Continuação de Velas + SMA 9' },
+                    { value: 'CandleRepeat' as EstrategiaAnalise, label: 'Candle Repeat' },
                   ] as { value: EstrategiaAnalise; label: string }[]).map(est => (
                     <div key={est.value} className="bg-slate-800/40 border border-white/5 rounded-lg p-4 space-y-3">
                       <label className="flex items-center gap-3 cursor-pointer group">
