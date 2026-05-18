@@ -59,6 +59,7 @@ import {
   proximoHorarioExecucaoCavaloTroia,
 } from './motor-cavalo-troia';
 import { analisarContinuacaoVelas } from './motor-continuacao-velas';
+import { analisarCandleRepeat } from './motor-candle-repeat';
 import type {
   VornaSessao,
   VornaEstadoConexao,
@@ -73,6 +74,7 @@ import type {
   OperacaoLPDetalhada,
   AnaliseImpulsoCorrecaoEngolfo,
   AnaliseContinuacaoVelas,
+  AnaliseCandleRepeat,
   Profile,
 } from '../types';
 import type { OperacaoAberta } from './vorna';
@@ -287,6 +289,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const operacaoCVelasEmAndamentoRef = useRef<boolean>(false);
   const ultimaDirecaoCVelasRef = useRef<'compra' | 'venda' | null>(null);
   const aguardandoResetCVelasRef = useRef<boolean>(false);
+
+  // Candle Repeat
+  const [analiseCR, setAnaliseCR] = useState<AnaliseCandleRepeat | null>(null);
+  const ultimoSinalCRRef = useRef<string>('');
+  const operacaoCREmAndamentoRef = useRef<boolean>(false);
 
   // Sincroniza localStorage quando muda
   useEffect(() => {
@@ -507,6 +514,17 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           setTimeout(() => {
             const analise = analisarContinuacaoVelas(velas);
             setAnaliseCVelas(analise);
+          }, 0);
+        }
+      }
+
+      if (config?.estrategia === 'CandleRepeat') {
+        const agoraSegundos = Math.floor(Date.now() / 1000);
+        if (agoraSegundos > utimoVelaSegundosRef.current) {
+          utimoVelaSegundosRef.current = agoraSegundos;
+          setTimeout(() => {
+            const analise = analisarCandleRepeat(velas);
+            setAnaliseCR(analise);
           }, 0);
         }
       }
@@ -1017,6 +1035,131 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             // sinal_id mantido: se falhou, aguarda o próximo candle sem retry no timing errado
           });
       }, msAteVelaCV);
+    }, 250);
+
+    return () => {
+      clearInterval(intervalId);
+      if (pendingEntryTimerRef.current !== null) {
+        clearTimeout(pendingEntryTimerRef.current);
+        pendingEntryTimerRef.current = null;
+      }
+    };
+  }, [automacao.status, automacao.config, automacao.lucro_acumulado, automacao.perda_acumulada, automacao.operacoes_executadas, automacao.operacoes_total, modoVPS]);
+
+  // ── Tick de Execução CandleRepeat ──
+  useEffect(() => {
+    if (automacao.status !== 'em_operacao') return;
+    const config = automacao.config;
+    if (!config || config.estrategia !== 'CandleRepeat') return;
+    if (modoVPS && vpsOnlineRef.current) return;
+
+    const duracaoCandleMap: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, M60: 3600 };
+    const ehM1CR = config.timeframe === 'M1';
+
+    const intervalId = window.setInterval(() => {
+      const velas = velasAtuaisRef.current;
+      if (velas.length < 2) return;
+      if (operacaoCREmAndamentoRef.current) return;
+
+      const agora = new Date();
+      const segundos = agora.getSeconds();
+
+      // M1: pré-aquecer conexão aos 54s e gate de análise aos 57-59s (vela prestes a fechar)
+      if (ehM1CR) {
+        if (segundos >= 54 && segundos < 57) { preAquecerConexao(); return; }
+        if (segundos < 57) return;
+      }
+
+      const usarAntecipar = ehM1CR && segundos >= 57;
+      const sinalVelaIdx = usarAntecipar ? velas.length - 1 : velas.length - 2;
+      const sinalVelaTs = velas[sinalVelaIdx]?.timestamp ?? 0;
+      const sinalVelaTsNorm = sinalVelaTs > 1e11 ? sinalVelaTs / 1000 : sinalVelaTs;
+
+      const analise = analisarCandleRepeat(velas, usarAntecipar);
+
+      if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
+      if (ultimoSinalCRRef.current === analise.sinal_id) return;
+
+      // Rejeita sinal de candle com mais de 2 minutos (relay muito stale)
+      if (sinalVelaTsNorm > 0 && Date.now() / 1000 - sinalVelaTsNorm > 120) return;
+
+      if (operacoesAbertasRef.current.length > 0) {
+        const opF = operacoesAbertasRef.current[0];
+        if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
+          console.warn(`[CR] Op ${opF.id} travada. Liberando flag — polling registrará o resultado.`);
+          operacaoCREmAndamentoRef.current = false;
+        } else {
+          return;
+        }
+      }
+
+      const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
+      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      if (atingiuMeta || atingiuStop || atingiuLimite) return;
+
+      const { valor, novo_ciclo } = calcularValorOperacao({
+        estrategia: config.gerenciamento,
+        valor_base: config.valor_por_operacao,
+        resultado_anterior: resultadoAnteriorRef.current,
+        valor_anterior: valorAnteriorRef.current || config.valor_por_operacao,
+        multiplicador_martingale: config.multiplicador_martingale,
+        multiplicador_soros: config.multiplicador_soros,
+        payout: config.payout,
+        ciclo_martingale: cicloMartingaleRef.current,
+        max_martingale: config.max_martingale,
+        banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+      });
+
+      ultimoSinalCRRef.current = analise.sinal_id;
+      setCicloMartingale(novo_ciclo);
+      setValorOperacaoAtual(valor);
+      valorAnteriorRef.current = valor;
+      operacaoCREmAndamentoRef.current = true;
+
+      preAquecerConexao();
+      if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
+      const msAteVelaCR = ehM1CR
+        ? Math.max(0, (60 - agora.getSeconds()) * 1000 - agora.getMilliseconds())
+        : 0;
+      const horaEnvioCR = ehM1CR
+        ? new Date(Math.ceil(agora.getTime() / 60000) * 60000).toISOString()
+        : new Date().toISOString();
+
+      console.log(`[CR] >>> SINAL ${analise.direcao_operacao.toUpperCase()} | Cor: ${analise.ultima_vela_cor} | Agendado +${Math.round(msAteVelaCR)}ms`);
+
+      pendingEntryTimerRef.current = window.setTimeout(() => {
+        pendingEntryTimerRef.current = null;
+
+        const agoraEnvio = new Date();
+        const totalSegCR = agoraEnvio.getMinutes() * 60 + agoraEnvio.getSeconds();
+        const candleDuracaoCR = duracaoCandleMap[config.timeframe] || 60;
+        const segundosDesde = totalSegCR % candleDuracaoCR;
+        const duracao = Math.max(5, candleDuracaoCR - segundosDesde);
+
+        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+          .then(async id => {
+            console.log(`[CR] Ordem enviada! ID: ${id}`);
+            setOperacoesAbertas(prev => [...prev, {
+              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioCR, duracao, status: 'enviada',
+            }]);
+            try {
+              const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
+              saldoAnteriorRef.current = saldoAposEnvio + valor;
+            } catch {
+              saldoAnteriorRef.current -= valor;
+            }
+            setAutomacao(prev => ({ ...prev, ultima_verificacao: new Date().toISOString() }));
+            subscreverResultadoOperacao(id, (res, pnl) => {
+              resultadoPendenteRef.current.set(id, { resultado: res, pnl });
+              unsubResultadoRef.current.delete(id);
+            }).then(unsub => { if (unsub) unsubResultadoRef.current.set(id, unsub); });
+          })
+          .catch(err => {
+            console.error('[CR] Erro no envio:', err);
+            operacaoCREmAndamentoRef.current = false;
+          });
+      }, msAteVelaCR);
     }, 250);
 
     return () => {
@@ -1717,7 +1860,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           automacao.config?.estrategia === 'Quadrantes5min' ||
           automacao.config?.estrategia === 'CavaloTroia' ||
           automacao.config?.estrategia === 'Quadrantes' ||
-          automacao.config?.estrategia === 'ContinuacaoVelas';
+          automacao.config?.estrategia === 'ContinuacaoVelas' ||
+          automacao.config?.estrategia === 'CandleRepeat';
 
         if (automacao.config?.gerenciamento === 'P6') {
           // 0. Evento WebSocket nativo — processa IMEDIATAMENTE, sem throttle
@@ -2186,6 +2330,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             operacaoCVelasEmAndamentoRef.current = false;
           }
 
+          if (automacao.config?.estrategia === 'CandleRepeat') {
+            operacaoCREmAndamentoRef.current = false;
+          }
+
           // Atualizar resultado no histórico (FluxoVelas)
           if (automacao.config?.estrategia === 'FluxoVelas') {
             const opFluxo = criarOperacaoFluxoVelas({
@@ -2532,6 +2680,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       operacaoCVelasEmAndamentoRef.current = false;
       ultimaDirecaoCVelasRef.current = null;
       aguardandoResetCVelasRef.current = false;
+      ultimoSinalCRRef.current = '';
+      operacaoCREmAndamentoRef.current = false;
       const intervalMap: Record<string, string> = { M1: '1', M5: '5', M15: '15', M30: '30', M60: '60' };
       servicoVelas.conectar(config.ativo, intervalMap[config.timeframe] || '1');
       setAutomacao({
@@ -2646,6 +2796,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     operacaoCVelasEmAndamentoRef.current = false;
     ultimaDirecaoCVelasRef.current = null;
     aguardandoResetCVelasRef.current = false;
+    setAnaliseCR(null);
+    ultimoSinalCRRef.current = '';
+    operacaoCREmAndamentoRef.current = false;
     setCicloMartingale(0);
     setValorOperacaoAtual(0);
   }, []);

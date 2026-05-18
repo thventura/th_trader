@@ -164,7 +164,7 @@ export interface Op {
 // ── Automação VornaBroker ──
 
 // FORK: ao adicionar/remover estratégias em src/config/branding.ts, atualize este tipo também.
-export type EstrategiaAnalise = 'Quadrantes' | 'Quadrantes5min' | 'FluxoVelas' | 'LogicaDoPreco' | 'ImpulsoCorrecaoEngolfo' | 'CavaloTroia' | 'ContinuacaoVelas';
+export type EstrategiaAnalise = 'Quadrantes' | 'Quadrantes5min' | 'FluxoVelas' | 'LogicaDoPreco' | 'ImpulsoCorrecaoEngolfo' | 'CavaloTroia' | 'ContinuacaoVelas' | 'CandleRepeat';
 export type Gerenciamento = 'Fixo' | 'Martingale' | 'Soros' | 'P6';
 export type StatusAutomacao = 'aguardando' | 'em_operacao' | 'pausado' | 'finalizado';
 export type ModoFluxo = '2-3' | '3+' | 'automatico';
@@ -213,7 +213,7 @@ export interface ConfigAutomacaoPlataforma {
 }
 
 export const CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT: ConfigAutomacaoPlataforma = {
-  estrategias_ativas: ['Quadrantes', 'Quadrantes5min', 'FluxoVelas', 'LogicaDoPreco', 'ImpulsoCorrecaoEngolfo', 'CavaloTroia'],
+  estrategias_ativas: ['Quadrantes', 'Quadrantes5min', 'FluxoVelas', 'LogicaDoPreco', 'ImpulsoCorrecaoEngolfo', 'CavaloTroia', 'CandleRepeat'],
   gerenciamentos_ativos: ['Fixo', 'Martingale', 'Soros', 'P6'],
 };
 
@@ -469,6 +469,17 @@ export interface AnaliseContinuacaoVelas {
   preco_atual: number | null;
   preco_acima_sma: boolean | null;
   sma_inclinacao: 'subindo' | 'descendo' | 'neutra' | null;
+  motivo_bloqueio: string | null;
+  explicacao: string;
+}
+
+// ── Candle Repeat ──
+
+export interface AnaliseCandleRepeat {
+  operar: boolean;
+  direcao_operacao: 'compra' | 'venda' | null;
+  sinal_id: string | null;
+  ultima_vela_cor: 'alta' | 'baixa' | 'doji' | null;
   motivo_bloqueio: string | null;
   explicacao: string;
 }

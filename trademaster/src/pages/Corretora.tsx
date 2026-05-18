@@ -371,6 +371,7 @@ function PainelAutomacao({
                 {configPlataforma.estrategias_ativas.includes('ImpulsoCorrecaoEngolfo') && <option value="ImpulsoCorrecaoEngolfo">{nomeExibido('ImpulsoCorrecaoEngolfo')}</option>}
                 {configPlataforma.estrategias_ativas.includes('CavaloTroia') && <option value="CavaloTroia">{nomeExibido('CavaloTroia')}</option>}
                 {configPlataforma.estrategias_ativas.includes('ContinuacaoVelas') && <option value="ContinuacaoVelas">{nomeExibido('ContinuacaoVelas')}</option>}
+                {configPlataforma.estrategias_ativas.includes('CandleRepeat') && <option value="CandleRepeat">{nomeExibido('CandleRepeat')}</option>}
               </select>
             </div>
             <div>

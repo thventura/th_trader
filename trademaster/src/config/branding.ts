@@ -30,6 +30,7 @@ export const BRANDING = {
     'LogicaDoPreco',
     'ImpulsoCorrecaoEngolfo',
     'CavaloTroia',
+    'CandleRepeat',
   ] as const,
 
   // Nomes de exibição das estratégias (usados em dropdowns, cards, etc.)
@@ -40,6 +41,7 @@ export const BRANDING = {
     LogicaDoPreco: 'Lógica do Preço',
     ImpulsoCorrecaoEngolfo: 'Impulso-Correção-Engolfo',
     CavaloTroia: 'Cavalo de Troia (M2, 20min)',
+    CandleRepeat: 'Candle Repeat',
   } as Record<string, string>,
 
   // ── Gerenciamentos disponíveis ───────────────────────────────────────────────
