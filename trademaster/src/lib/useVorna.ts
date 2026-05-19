@@ -909,14 +909,20 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       // Detectar vela de descanso para liberar próxima entrada.
       // Qualquer candle que NÃO seja da mesma cor da última entrada quebra a sequência
       // (inclusive doji/cinza, pois não é uma continuação).
-      if (aguardandoResetCVelasRef.current && analise.ultima_vela_cor) {
-        const precisaVermelho = ultimaDirecaoCVelasRef.current === 'compra';
-        const resetDetectado = precisaVermelho
-          ? analise.ultima_vela_cor !== 'alta'   // doji ou vermelho quebram CALL
-          : analise.ultima_vela_cor !== 'baixa'; // doji ou verde quebram PUT
-        if (resetDetectado) {
-          aguardandoResetCVelasRef.current = false;
-          console.log(`[CVelas] Sequência quebrada por vela ${analise.ultima_vela_cor}. Próxima entrada liberada.`);
+      // Usa sempre a última vela FECHADA para o reset (não a em formação).
+      // Vela em formação oscila entre doji e colorida nos segundos 57-59, causando
+      // reset falso que libera entrada na 3ª vela consecutiva.
+      if (aguardandoResetCVelasRef.current) {
+        const corFechada = analisarContinuacaoVelas(velas, false).ultima_vela_cor;
+        if (corFechada) {
+          const precisaVermelho = ultimaDirecaoCVelasRef.current === 'compra';
+          const resetDetectado = precisaVermelho
+            ? corFechada !== 'alta'   // doji ou vermelho quebram CALL
+            : corFechada !== 'baixa'; // doji ou verde quebram PUT
+          if (resetDetectado) {
+            aguardandoResetCVelasRef.current = false;
+            console.log(`[CVelas] Sequência quebrada por vela ${corFechada}. Próxima entrada liberada.`);
+          }
         }
       }
 
@@ -1079,17 +1085,18 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       const analise = analisarCandleRepeat(velas, usarAntecipar);
 
-      // Detectar vela que quebra a sequência → libera próxima entrada.
-      // Qualquer candle que não seja da mesma cor da última entrada quebra a sequência
-      // (inclusive doji, pois não é continuação).
-      if (aguardandoResetCRRef.current && analise.ultima_vela_cor) {
-        const precisaVermelho = ultimaDirecaoCRRef.current === 'compra';
-        const resetDetectado = precisaVermelho
-          ? analise.ultima_vela_cor !== 'alta'   // doji ou vermelho quebram CALL
-          : analise.ultima_vela_cor !== 'baixa'; // doji ou verde quebram PUT
-        if (resetDetectado) {
-          aguardandoResetCRRef.current = false;
-          console.log(`[CR] Sequência quebrada por vela ${analise.ultima_vela_cor}. Próxima entrada liberada.`);
+      // Usa sempre a última vela FECHADA para o reset (não a em formação).
+      if (aguardandoResetCRRef.current) {
+        const corFechada = analisarCandleRepeat(velas, false).ultima_vela_cor;
+        if (corFechada) {
+          const precisaVermelho = ultimaDirecaoCRRef.current === 'compra';
+          const resetDetectado = precisaVermelho
+            ? corFechada !== 'alta'   // doji ou vermelho quebram CALL
+            : corFechada !== 'baixa'; // doji ou verde quebram PUT
+          if (resetDetectado) {
+            aguardandoResetCRRef.current = false;
+            console.log(`[CR] Sequência quebrada por vela ${corFechada}. Próxima entrada liberada.`);
+          }
         }
       }
 
