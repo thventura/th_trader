@@ -296,6 +296,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const operacaoCREmAndamentoRef = useRef<boolean>(false);
   const ultimaDirecaoCRRef = useRef<'compra' | 'venda' | null>(null);
   const aguardandoResetCRRef = useRef<boolean>(false);
+  const resetCorAnteriorCVelasRef = useRef<'alta' | 'baixa' | 'doji' | null>(null);
+  const resetCorAnteriorCRRef = useRef<'alta' | 'baixa' | 'doji' | null>(null);
 
   // Sincroniza localStorage quando muda
   useEffect(() => {
@@ -906,23 +908,22 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       const analise = analisarContinuacaoVelas(velas, usarAntecipar);
 
-      // Detectar vela de descanso para liberar próxima entrada.
-      // Qualquer candle que NÃO seja da mesma cor da última entrada quebra a sequência
-      // (inclusive doji/cinza, pois não é uma continuação).
-      // Usa sempre a última vela FECHADA para o reset (não a em formação).
-      // Vela em formação oscila entre doji e colorida nos segundos 57-59, causando
-      // reset falso que libera entrada na 3ª vela consecutiva.
-      if (aguardandoResetCVelasRef.current) {
-        const corFechada = analisarContinuacaoVelas(velas, false).ultima_vela_cor;
-        if (corFechada) {
-          const precisaVermelho = ultimaDirecaoCVelasRef.current === 'compra';
-          const resetDetectado = precisaVermelho
-            ? corFechada !== 'alta'   // doji ou vermelho quebram CALL
-            : corFechada !== 'baixa'; // doji ou verde quebram PUT
-          if (resetDetectado) {
-            aguardandoResetCVelasRef.current = false;
-            console.log(`[CVelas] Sequência quebrada por vela ${corFechada}. Próxima entrada liberada.`);
-          }
+      // Detectar vela que quebra a sequência → libera próxima entrada.
+      // Debounce de 2 ticks (250ms cada): exige a mesma cor "de reset" em 2 ticks consecutivos
+      // antes de confirmar. Previne falso reset causado por doji transitório nos segundos 57-59
+      // (vela em formação pode ter corpo mínimo momentaneamente antes de crescer).
+      if (aguardandoResetCVelasRef.current && analise.ultima_vela_cor) {
+        const corAtual = analise.ultima_vela_cor;
+        const precisaVermelho = ultimaDirecaoCVelasRef.current === 'compra';
+        const eCandidataReset = precisaVermelho
+          ? corAtual !== 'alta'   // doji ou vermelho quebram CALL
+          : corAtual !== 'baixa'; // doji ou verde quebram PUT
+        if (eCandidataReset && corAtual === resetCorAnteriorCVelasRef.current) {
+          aguardandoResetCVelasRef.current = false;
+          resetCorAnteriorCVelasRef.current = null;
+          console.log(`[CVelas] Sequência quebrada por vela ${corAtual}. Próxima entrada liberada.`);
+        } else {
+          resetCorAnteriorCVelasRef.current = eCandidataReset ? corAtual : null;
         }
       }
 
@@ -1085,18 +1086,19 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       const analise = analisarCandleRepeat(velas, usarAntecipar);
 
-      // Usa sempre a última vela FECHADA para o reset (não a em formação).
-      if (aguardandoResetCRRef.current) {
-        const corFechada = analisarCandleRepeat(velas, false).ultima_vela_cor;
-        if (corFechada) {
-          const precisaVermelho = ultimaDirecaoCRRef.current === 'compra';
-          const resetDetectado = precisaVermelho
-            ? corFechada !== 'alta'   // doji ou vermelho quebram CALL
-            : corFechada !== 'baixa'; // doji ou verde quebram PUT
-          if (resetDetectado) {
-            aguardandoResetCRRef.current = false;
-            console.log(`[CR] Sequência quebrada por vela ${corFechada}. Próxima entrada liberada.`);
-          }
+      // Debounce de 2 ticks: mesma cor "de reset" por 2 ticks consecutivos → confirmado.
+      if (aguardandoResetCRRef.current && analise.ultima_vela_cor) {
+        const corAtual = analise.ultima_vela_cor;
+        const precisaVermelho = ultimaDirecaoCRRef.current === 'compra';
+        const eCandidataReset = precisaVermelho
+          ? corAtual !== 'alta'
+          : corAtual !== 'baixa';
+        if (eCandidataReset && corAtual === resetCorAnteriorCRRef.current) {
+          aguardandoResetCRRef.current = false;
+          resetCorAnteriorCRRef.current = null;
+          console.log(`[CR] Sequência quebrada por vela ${corAtual}. Próxima entrada liberada.`);
+        } else {
+          resetCorAnteriorCRRef.current = eCandidataReset ? corAtual : null;
         }
       }
 
@@ -2712,6 +2714,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       operacaoCREmAndamentoRef.current = false;
       ultimaDirecaoCRRef.current = null;
       aguardandoResetCRRef.current = false;
+      resetCorAnteriorCVelasRef.current = null;
+      resetCorAnteriorCRRef.current = null;
       const intervalMap: Record<string, string> = { M1: '1', M5: '5', M15: '15', M30: '30', M60: '60' };
       servicoVelas.conectar(config.ativo, intervalMap[config.timeframe] || '1');
       setAutomacao({
@@ -2831,6 +2835,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     operacaoCREmAndamentoRef.current = false;
     ultimaDirecaoCRRef.current = null;
     aguardandoResetCRRef.current = false;
+    resetCorAnteriorCVelasRef.current = null;
+    resetCorAnteriorCRRef.current = null;
     setCicloMartingale(0);
     setValorOperacaoAtual(0);
   }, []);
