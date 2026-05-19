@@ -294,6 +294,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const [analiseCR, setAnaliseCR] = useState<AnaliseCandleRepeat | null>(null);
   const ultimoSinalCRRef = useRef<string>('');
   const operacaoCREmAndamentoRef = useRef<boolean>(false);
+  const ultimaDirecaoCRRef = useRef<'compra' | 'venda' | null>(null);
+  const aguardandoResetCRRef = useRef<boolean>(false);
 
   // Sincroniza localStorage quando muda
   useEffect(() => {
@@ -1077,11 +1079,28 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       const analise = analisarCandleRepeat(velas, usarAntecipar);
 
+      // Detectar vela que quebra a sequência → libera próxima entrada.
+      // Qualquer candle que não seja da mesma cor da última entrada quebra a sequência
+      // (inclusive doji, pois não é continuação).
+      if (aguardandoResetCRRef.current && analise.ultima_vela_cor) {
+        const precisaVermelho = ultimaDirecaoCRRef.current === 'compra';
+        const resetDetectado = precisaVermelho
+          ? analise.ultima_vela_cor !== 'alta'   // doji ou vermelho quebram CALL
+          : analise.ultima_vela_cor !== 'baixa'; // doji ou verde quebram PUT
+        if (resetDetectado) {
+          aguardandoResetCRRef.current = false;
+          console.log(`[CR] Sequência quebrada por vela ${analise.ultima_vela_cor}. Próxima entrada liberada.`);
+        }
+      }
+
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
       if (ultimoSinalCRRef.current === analise.sinal_id) return;
 
       // Rejeita sinal de candle com mais de 2 minutos (relay muito stale)
       if (sinalVelaTsNorm > 0 && Date.now() / 1000 - sinalVelaTsNorm > 120) return;
+
+      // Bloquear entrada consecutiva na mesma direção — aguarda vela de cor diferente
+      if (aguardandoResetCRRef.current) return;
 
       if (operacoesAbertasRef.current.length > 0) {
         const opF = operacoesAbertasRef.current[0];
@@ -1140,6 +1159,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
           .then(async id => {
             console.log(`[CR] Ordem enviada! ID: ${id}`);
+            ultimaDirecaoCRRef.current = analise.direcao_operacao!;
+            aguardandoResetCRRef.current = true;
             setOperacoesAbertas(prev => [...prev, {
               id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioCR, duracao, status: 'enviada',
             }]);
@@ -2682,6 +2703,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       aguardandoResetCVelasRef.current = false;
       ultimoSinalCRRef.current = '';
       operacaoCREmAndamentoRef.current = false;
+      ultimaDirecaoCRRef.current = null;
+      aguardandoResetCRRef.current = false;
       const intervalMap: Record<string, string> = { M1: '1', M5: '5', M15: '15', M30: '30', M60: '60' };
       servicoVelas.conectar(config.ativo, intervalMap[config.timeframe] || '1');
       setAutomacao({
@@ -2799,6 +2822,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     setAnaliseCR(null);
     ultimoSinalCRRef.current = '';
     operacaoCREmAndamentoRef.current = false;
+    ultimaDirecaoCRRef.current = null;
+    aguardandoResetCRRef.current = false;
     setCicloMartingale(0);
     setValorOperacaoAtual(0);
   }, []);
