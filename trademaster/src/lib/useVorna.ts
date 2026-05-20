@@ -296,6 +296,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const operacaoCREmAndamentoRef = useRef<boolean>(false);
   const ultimaDirecaoCRRef = useRef<'compra' | 'venda' | null>(null);
   const aguardandoResetCRRef = useRef<boolean>(false);
+  const ghostFiredCROpsRef = useRef(new Set<string>());
   const resetCorAnteriorCVelasRef = useRef<'alta' | 'baixa' | 'doji' | null>(null);
   const resetCorAnteriorCRRef = useRef<'alta' | 'baixa' | 'doji' | null>(null);
 
@@ -1121,14 +1122,16 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       if (operacoesAbertasRef.current.length > 0) {
         const opF = operacoesAbertasRef.current[0];
         if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
-          console.warn(`[CR] Op ${opF.id} travada. Liberando flag — polling registrará o resultado.`);
-          operacaoCREmAndamentoRef.current = false;
-          // P6: resultado não foi processado pelo polling — resetar ciclo preventivamente
-          // para evitar que o nível da proteção seja reutilizado no próximo sinal
-          if (config.gerenciamento === 'P6') {
-            cicloMartingaleRef.current = 0;
-            setCicloMartingale(0);
+          if (!ghostFiredCROpsRef.current.has(opF.id)) {
+            console.warn(`[CR] Op ${opF.id} travada. Liberando flag — polling registrará o resultado.`);
+            operacaoCREmAndamentoRef.current = false;
+            ghostFiredCROpsRef.current.add(opF.id);
+            if (config.gerenciamento === 'P6') {
+              cicloMartingaleRef.current = 0;
+              setCicloMartingale(0);
+            }
           }
+          // Não retorna — permite novo sinal mesmo com op fantasma
         } else {
           return;
         }
@@ -1953,28 +1956,36 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           } else {
             // 2. Fallback: comparação de saldo (Blitz credita com delay — aguarda até 45s)
             const saldoAtual = await obterSaldoRapido(automacao.config?.tipo_conta ?? 'REAL').catch(() => null);
-            if (saldoAtual === null) return;
 
-            const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
-            const diffP6 = saldoAtual - referenciaP6;
+            if (saldoAtual !== null) {
+              const referenciaP6 = bancaInicioSessaoP6Ref.current - perdasAcumuladasP6Ref.current - valorUsado;
+              const diffP6 = saldoAtual - referenciaP6;
 
-            if (diffP6 > valorUsado * 1.1) {
-              resultado = 'vitoria';
-              diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
-              saldoAnteriorRef.current = saldoAtual;
-              saldoAposResultadoP6 = saldoAtual;
-              console.log(`[P6-Saldo] WIN | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
-            } else if (diffP6 > valorUsado * 0.5) {
-              resultado = 'empate';
-              diferenca = 0;
-              saldoAnteriorRef.current = saldoAtual;
-              saldoAposResultadoP6 = saldoAtual;
-              console.log(`[P6-Saldo] EMPATE | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
+              if (diffP6 > valorUsado * 1.1) {
+                resultado = 'vitoria';
+                diferenca = valorUsado * ((automacao.config?.payout || 88) / 100);
+                saldoAnteriorRef.current = saldoAtual;
+                saldoAposResultadoP6 = saldoAtual;
+                console.log(`[P6-Saldo] WIN | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
+              } else if (diffP6 > valorUsado * 0.5) {
+                resultado = 'empate';
+                diferenca = 0;
+                saldoAnteriorRef.current = saldoAtual;
+                saldoAposResultadoP6 = saldoAtual;
+                console.log(`[P6-Saldo] EMPATE | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)} diff=${diffP6.toFixed(2)}`);
+              } else if (msAposExpiracao < 45000) {
+                // Aguarda até 45s para saldo Blitz atualizar
+                return;
+              }
+              // else: saldo não confirmou após 45s → cai no fallback de vela abaixo
             } else if (msAposExpiracao < 45000) {
-              // Aguarda até 45s para saldo Blitz atualizar (era 20s)
+              // Saldo indisponível + cedo demais → aguarda
               return;
-            } else {
-              // 3. Fallback vela (último recurso após 45s sem saldo confirmar)
+            }
+            // Chegou aqui: saldo null com 45s+ OR saldo não confirmou com 45s+ → vela fallback
+
+            // 3. Fallback vela (último recurso: saldo null ou não confirmado após 45s)
+            if (resultado === 'derrota') {
               const todasVelasF = servicoVelas.obterTodasVelas();
               const resultCandleTs = optionCandleStart / 1000;
               const velaResultado =
@@ -2004,9 +2015,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               } else {
                 resultado = 'derrota';
                 diferenca = -valorUsado;
-                console.log(`[P6-Saldo] LOSS (timeout 45s sem dados) | saldo=${saldoAtual.toFixed(2)} ref=${referenciaP6.toFixed(2)}`);
+                console.log(`[P6-Saldo] LOSS (timeout 45s sem dados) | saldo=${(saldoAtual ?? 0).toFixed(2)}`);
               }
-              saldoAnteriorRef.current = saldoAtual;
+              if (saldoAtual !== null) saldoAnteriorRef.current = saldoAtual;
               saldoAposResultadoP6 = saldoAtual;
             }
           }
@@ -2137,6 +2148,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           }
           ultimaOpProcessadaIdRef.current = opId;
           setOperacoesAbertas((prev: OperacaoAberta[]) => prev.filter(o => o.id !== opId));
+          ghostFiredCROpsRef.current.delete(opId);
 
           const valorUsado = opAtual.valor || valorOperacaoAtual || automacao.config.valor_por_operacao;
           valorAnteriorRef.current = valorUsado;
