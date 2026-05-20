@@ -993,22 +993,28 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
 
-        // Confirmação no disparo: verificar que o candle de sinal fechou conforme esperado.
-        // O candle pode ter virado doji ou revertido nos 3s finais antes do fechamento.
+        // Confirmação no disparo: cancelar apenas se a vela de sinal inverteu de direção
+        // (verde→vermelho ou vermelho→verde) nos últimos segundos. Filtros menores (doji,
+        // força) não devem cancelar — a direção detectada aos 57s ainda é válida.
         const velasNoDisparo = velasAtuaisRef.current;
         if (velasNoDisparo.length >= 2) {
           const ultimaNoDisparo = velasNoDisparo[velasNoDisparo.length - 1];
           const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e11
             ? ultimaNoDisparo.timestamp / 1000
             : ultimaNoDisparo?.timestamp ?? 0;
-          // Se relay ainda mostra o candle de sinal como o último → antecipar=true (usa velas[length-1])
-          // Se relay já avançou com novo candle formando → antecipar=false (usa velas[length-2] = candle de sinal)
           const sinalAindaNoFinal = Math.abs(ultimaTsDisparo - sinalVelaTsNorm) < 60;
-          const analiseDisparo = analisarContinuacaoVelas(velasNoDisparo, sinalAindaNoFinal);
-          if (!analiseDisparo.operar || analiseDisparo.direcao_operacao !== analise.direcao_operacao) {
-            console.warn(`[CVelas] Sinal cancelado no disparo: ${analiseDisparo.motivo_bloqueio ?? analiseDisparo.explicacao}`);
-            operacaoCVelasEmAndamentoRef.current = false;
-            return;
+          const idxSinalNoDisparo = sinalAindaNoFinal
+            ? velasNoDisparo.length - 1
+            : velasNoDisparo.length - 2;
+          const velaNoDisparo = velasNoDisparo[idxSinalNoDisparo];
+          if (velaNoDisparo) {
+            const corEsperada = analise.direcao_operacao === 'compra' ? 'alta' : 'baixa';
+            const corAtual = velaNoDisparo.fechamento >= velaNoDisparo.abertura ? 'alta' : 'baixa';
+            if (corAtual !== corEsperada) {
+              console.warn(`[CVelas] Sinal cancelado no disparo: vela inverteu de ${corEsperada} para ${corAtual}`);
+              operacaoCVelasEmAndamentoRef.current = false;
+              return;
+            }
           }
         }
 
@@ -1073,10 +1079,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const agora = new Date();
       const segundos = agora.getSeconds();
 
-      // M1: pré-aquecer conexão aos 54s e gate de análise aos 57-59s (vela prestes a fechar)
+      // M1: pré-aquecer aos 54–56s.
+      // Seg 0–53: análise imediata com vela fechada (cobre o caso pós-resultado de trade).
+      // Seg 57–59: análise antecipada (vela formando) e agenda entrada para segundo 0.
       if (ehM1CR) {
         if (segundos >= 54 && segundos < 57) { preAquecerConexao(); return; }
-        if (segundos < 57) return;
       }
 
       const usarAntecipar = ehM1CR && segundos >= 57;
@@ -1116,6 +1123,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (Date.now() - new Date(opF?.hora_envio ?? 0).getTime() > ((opF?.duracao ?? 60) + 90) * 1000) {
           console.warn(`[CR] Op ${opF.id} travada. Liberando flag — polling registrará o resultado.`);
           operacaoCREmAndamentoRef.current = false;
+          // P6: resultado não foi processado pelo polling — resetar ciclo preventivamente
+          // para evitar que o nível da proteção seja reutilizado no próximo sinal
+          if (config.gerenciamento === 'P6') {
+            cicloMartingaleRef.current = 0;
+            setCicloMartingale(0);
+          }
         } else {
           return;
         }
@@ -1147,10 +1160,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       preAquecerConexao();
       if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
-      const msAteVelaCR = ehM1CR
+      // Seg 57–59: aguarda o segundo 0 exato da próxima vela.
+      // Seg 0–53: entra imediatamente (duração ajustada pelo cálculo de segundosDesde).
+      const msAteVelaCR = (ehM1CR && segundos >= 57)
         ? Math.max(0, (60 - agora.getSeconds()) * 1000 - agora.getMilliseconds())
         : 0;
-      const horaEnvioCR = ehM1CR
+      const horaEnvioCR = (ehM1CR && segundos >= 57)
         ? new Date(Math.ceil(agora.getTime() / 60000) * 60000).toISOString()
         : new Date().toISOString();
 
@@ -1873,8 +1888,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const optionCandleStart = Math.ceil(enviada / 60000) * 60000;
         // Expiração real: baseada no momento de envio (não na virada do candle)
         const expiracaoReal = enviada + duracaoOp;
-        // Começar a verificar 2s antes da expiração real
-        const checkAt = expiracaoReal - 2000;
+        // Para P6 + CandleRepeat: o Blitz expira em segundos, mas duracao armazenada é o
+        // tempo restante do candle M1 (≈60s). Processar o resultado cedo (8s após entrada)
+        // evita que o ciclo P6 fique no nível da proteção por quase 1 minuto.
+        const ehCandleRepeatP6 =
+          automacao.config?.gerenciamento === 'P6' &&
+          automacao.config?.estrategia === 'CandleRepeat';
+        const checkAt = ehCandleRepeatP6 ? enviada + 8000 : expiracaoReal - 2000;
         const ehOpTravada = tempoDecorrido > duracaoOp + 90000; // op aberta há mais de duracao+90s
         if (Date.now() < checkAt && !ehOpTravada) return;
 
