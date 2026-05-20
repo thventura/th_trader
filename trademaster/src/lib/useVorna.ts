@@ -289,6 +289,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const operacaoCVelasEmAndamentoRef = useRef<boolean>(false);
   const ultimaDirecaoCVelasRef = useRef<'compra' | 'venda' | null>(null);
   const aguardandoResetCVelasRef = useRef<boolean>(false);
+  const ultimaCorSinalCVelasRef = useRef<'alta' | 'baixa' | null>(null);
+  const ultimaTsSinalCVelasRef = useRef<number>(0);
 
   // Candle Repeat
   const [analiseCR, setAnaliseCR] = useState<AnaliseCandleRepeat | null>(null);
@@ -926,6 +928,23 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         } else {
           resetCorAnteriorCVelasRef.current = eCandidataReset ? corAtual : null;
         }
+      }
+
+      // Rastrear cor de cada vela de sinal por timestamp — mesmo velas bloqueadas pela SMA.
+      // Quando a 2ª+ vela consecutiva de mesma cor é detectada (mesmo sem entrada anterior),
+      // ativar aguardandoResetCVelasRef para exigir vela oposta antes da próxima entrada.
+      if (sinalVelaTsNorm !== 0 && sinalVelaTsNorm !== ultimaTsSinalCVelasRef.current) {
+        const corAtual = analise.ultima_vela_cor;
+        if (corAtual && corAtual !== 'doji') {
+          if (corAtual === ultimaCorSinalCVelasRef.current && !aguardandoResetCVelasRef.current) {
+            const direcaoDaCorAtual: 'compra' | 'venda' = corAtual === 'alta' ? 'compra' : 'venda';
+            aguardandoResetCVelasRef.current = true;
+            ultimaDirecaoCVelasRef.current = direcaoDaCorAtual;
+            console.log(`[CVelas] 2ª vela ${corAtual} consecutiva (sem entrada) → aguardando reset.`);
+          }
+          ultimaCorSinalCVelasRef.current = corAtual;
+        }
+        ultimaTsSinalCVelasRef.current = sinalVelaTsNorm;
       }
 
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
