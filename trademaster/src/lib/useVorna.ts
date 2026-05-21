@@ -1113,19 +1113,26 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       const analise = analisarCandleRepeat(velas, usarAntecipar);
 
-      // Debounce de 2 ticks: mesma cor "de reset" por 2 ticks consecutivos → confirmado.
-      if (aguardandoResetCRRef.current && analise.ultima_vela_cor) {
-        const corAtual = analise.ultima_vela_cor;
-        const precisaVermelho = ultimaDirecaoCRRef.current === 'compra';
-        const eCandidataReset = precisaVermelho
-          ? corAtual !== 'alta'
-          : corAtual !== 'baixa';
-        if (eCandidataReset && corAtual === resetCorAnteriorCRRef.current) {
-          aguardandoResetCRRef.current = false;
-          resetCorAnteriorCRRef.current = null;
-          console.log(`[CR] Sequência quebrada por vela ${corAtual}. Próxima entrada liberada.`);
-        } else {
-          resetCorAnteriorCRRef.current = eCandidataReset ? corAtual : null;
+      // Debounce de 2 ticks: vela FECHADA de cor oposta confirma reset da sequência.
+      // Usa sempre velas[length-2] (última fechada) — nunca a vela em formação (length-1).
+      // Doji excluído: corpo zero em vela formando não é uma direção definida.
+      const velaFechadaReset = velas[velas.length - 2];
+      if (aguardandoResetCRRef.current && velaFechadaReset) {
+        const cR = Math.abs(velaFechadaReset.fechamento - velaFechadaReset.abertura);
+        const rR = velaFechadaReset.maxima - velaFechadaReset.minima;
+        const corFechada = (rR === 0 || cR / rR < 0.20)
+          ? 'doji' as const
+          : velaFechadaReset.fechamento >= velaFechadaReset.abertura ? 'alta' as const : 'baixa' as const;
+        if (corFechada !== 'doji') {
+          const precisaVermelho = ultimaDirecaoCRRef.current === 'compra';
+          const eCandidataReset = precisaVermelho ? corFechada === 'baixa' : corFechada === 'alta';
+          if (eCandidataReset && corFechada === resetCorAnteriorCRRef.current) {
+            aguardandoResetCRRef.current = false;
+            resetCorAnteriorCRRef.current = null;
+            console.log(`[CR] Sequência quebrada por vela ${corFechada}. Próxima entrada liberada.`);
+          } else {
+            resetCorAnteriorCRRef.current = eCandidataReset ? corFechada : null;
+          }
         }
       }
 
