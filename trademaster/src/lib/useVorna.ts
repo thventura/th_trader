@@ -1197,28 +1197,30 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
 
-        // Confirmação no disparo: cancelar apenas se a vela de sinal inverteu definitivamente.
-        // Busca a vela pelo timestamp exato (evita pegar candle recém-aberto com fechamento=abertura
-        // que classificaria falsamente como verde e cancelaria entradas legítimas de PUT).
-        const velasNoDisparo = velasAtuaisRef.current;
-        const velaDeSignalNoDisparo = velasNoDisparo
-          .slice()
-          .reverse()
-          .find(v => {
-            const ts = v.timestamp > 1e11 ? v.timestamp / 1000 : v.timestamp;
-            return Math.abs(ts - sinalVelaTsNorm) < 1;
-          });
-        if (velaDeSignalNoDisparo) {
-          const corpo = Math.abs(velaDeSignalNoDisparo.fechamento - velaDeSignalNoDisparo.abertura);
-          const range = velaDeSignalNoDisparo.maxima - velaDeSignalNoDisparo.minima;
-          // Só cancela se a cor for definitiva (corpo ≥ 20% do range, não doji/relay-stale)
-          if (range > 0 && corpo / range >= 0.20) {
-            const corEsperada = analise.direcao_operacao === 'compra' ? 'alta' : 'baixa';
-            const corAtual = velaDeSignalNoDisparo.fechamento >= velaDeSignalNoDisparo.abertura ? 'alta' : 'baixa';
-            if (corAtual !== corEsperada) {
-              console.warn(`[CR] Sinal cancelado no disparo: vela inverteu de ${corEsperada} para ${corAtual}`);
-              operacaoCREmAndamentoRef.current = false;
-              return;
+        // Confirmação no disparo: só para entradas agendadas via gate (segundos 57-59 → segundo 0).
+        // Entradas imediatas (msAteVelaCR = 0, segundos 0-53) usam a última vela FECHADA como sinal —
+        // seu estado é definitivo e não precisa de confirmação de cor.
+        if (msAteVelaCR > 0) {
+          const velasNoDisparo = velasAtuaisRef.current;
+          const velaDeSignalNoDisparo = velasNoDisparo
+            .slice()
+            .reverse()
+            .find(v => {
+              const ts = v.timestamp > 1e11 ? v.timestamp / 1000 : v.timestamp;
+              return Math.abs(ts - sinalVelaTsNorm) < 1;
+            });
+          if (velaDeSignalNoDisparo) {
+            const corpo = Math.abs(velaDeSignalNoDisparo.fechamento - velaDeSignalNoDisparo.abertura);
+            const range = velaDeSignalNoDisparo.maxima - velaDeSignalNoDisparo.minima;
+            // Só cancela se a cor for definitiva (corpo ≥ 20% do range, não doji/relay-stale)
+            if (range > 0 && corpo / range >= 0.20) {
+              const corEsperada = analise.direcao_operacao === 'compra' ? 'alta' : 'baixa';
+              const corAtual = velaDeSignalNoDisparo.fechamento >= velaDeSignalNoDisparo.abertura ? 'alta' : 'baixa';
+              if (corAtual !== corEsperada) {
+                console.warn(`[CR] Sinal cancelado no disparo: vela inverteu de ${corEsperada} para ${corAtual}`);
+                operacaoCREmAndamentoRef.current = false;
+                return;
+              }
             }
           }
         }
@@ -1988,7 +1990,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           // 1. SDK/relay — getAllPositions (aberta) + getPositionsHistory (fechada)
           const sdkResult = await obterResultadoOperacao(opId).catch(() => null);
 
-          if (sdkResult) {
+          // Ignorar empate + pnl=0 (posição em voo, não liquidada pelo broker) — igual ao guard
+          // brokerConfiavel do path não-P6 Blitz. Cair no fallback de saldo/vela.
+          const sdkConfiavel = sdkResult && !(sdkResult.resultado === 'empate' && sdkResult.pnl === 0);
+          if (sdkConfiavel) {
             resultado = sdkResult.resultado;
             diferenca = sdkResult.resultado === 'vitoria'
               ? valorUsado * ((automacao.config?.payout || 88) / 100)
