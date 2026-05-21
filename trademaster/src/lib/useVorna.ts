@@ -1197,22 +1197,24 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
 
-        // Confirmação no disparo: cancelar se a vela de sinal inverteu de direção
-        // (mesma lógica do CVelas — vela formando pode fechar na cor oposta)
+        // Confirmação no disparo: cancelar apenas se a vela de sinal inverteu definitivamente.
+        // Busca a vela pelo timestamp exato (evita pegar candle recém-aberto com fechamento=abertura
+        // que classificaria falsamente como verde e cancelaria entradas legítimas de PUT).
         const velasNoDisparo = velasAtuaisRef.current;
-        if (velasNoDisparo.length >= 2) {
-          const ultimaNoDisparo = velasNoDisparo[velasNoDisparo.length - 1];
-          const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e11
-            ? ultimaNoDisparo.timestamp / 1000
-            : ultimaNoDisparo?.timestamp ?? 0;
-          const sinalAindaNoFinal = Math.abs(ultimaTsDisparo - sinalVelaTsNorm) < 60;
-          const idxSinalNoDisparo = sinalAindaNoFinal
-            ? velasNoDisparo.length - 1
-            : velasNoDisparo.length - 2;
-          const velaNoDisparo = velasNoDisparo[idxSinalNoDisparo];
-          if (velaNoDisparo) {
+        const velaDeSignalNoDisparo = velasNoDisparo
+          .slice()
+          .reverse()
+          .find(v => {
+            const ts = v.timestamp > 1e11 ? v.timestamp / 1000 : v.timestamp;
+            return Math.abs(ts - sinalVelaTsNorm) < 1;
+          });
+        if (velaDeSignalNoDisparo) {
+          const corpo = Math.abs(velaDeSignalNoDisparo.fechamento - velaDeSignalNoDisparo.abertura);
+          const range = velaDeSignalNoDisparo.maxima - velaDeSignalNoDisparo.minima;
+          // Só cancela se a cor for definitiva (corpo ≥ 20% do range, não doji/relay-stale)
+          if (range > 0 && corpo / range >= 0.20) {
             const corEsperada = analise.direcao_operacao === 'compra' ? 'alta' : 'baixa';
-            const corAtual = velaNoDisparo.fechamento >= velaNoDisparo.abertura ? 'alta' : 'baixa';
+            const corAtual = velaDeSignalNoDisparo.fechamento >= velaDeSignalNoDisparo.abertura ? 'alta' : 'baixa';
             if (corAtual !== corEsperada) {
               console.warn(`[CR] Sinal cancelado no disparo: vela inverteu de ${corEsperada} para ${corAtual}`);
               operacaoCREmAndamentoRef.current = false;
