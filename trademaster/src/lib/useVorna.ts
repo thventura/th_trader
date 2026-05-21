@@ -1175,6 +1175,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       });
 
       ultimoSinalCRRef.current = analise.sinal_id;
+      cicloMartingaleRef.current = novo_ciclo;
       setCicloMartingale(novo_ciclo);
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
@@ -1195,6 +1196,30 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
+
+        // Confirmação no disparo: cancelar se a vela de sinal inverteu de direção
+        // (mesma lógica do CVelas — vela formando pode fechar na cor oposta)
+        const velasNoDisparo = velasAtuaisRef.current;
+        if (velasNoDisparo.length >= 2) {
+          const ultimaNoDisparo = velasNoDisparo[velasNoDisparo.length - 1];
+          const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e11
+            ? ultimaNoDisparo.timestamp / 1000
+            : ultimaNoDisparo?.timestamp ?? 0;
+          const sinalAindaNoFinal = Math.abs(ultimaTsDisparo - sinalVelaTsNorm) < 60;
+          const idxSinalNoDisparo = sinalAindaNoFinal
+            ? velasNoDisparo.length - 1
+            : velasNoDisparo.length - 2;
+          const velaNoDisparo = velasNoDisparo[idxSinalNoDisparo];
+          if (velaNoDisparo) {
+            const corEsperada = analise.direcao_operacao === 'compra' ? 'alta' : 'baixa';
+            const corAtual = velaNoDisparo.fechamento >= velaNoDisparo.abertura ? 'alta' : 'baixa';
+            if (corAtual !== corEsperada) {
+              console.warn(`[CR] Sinal cancelado no disparo: vela inverteu de ${corEsperada} para ${corAtual}`);
+              operacaoCREmAndamentoRef.current = false;
+              return;
+            }
+          }
+        }
 
         const agoraEnvio = new Date();
         const totalSegCR = agoraEnvio.getMinutes() * 60 + agoraEnvio.getSeconds();
@@ -1913,10 +1938,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Para P6 + CandleRepeat: o Blitz expira em segundos, mas duracao armazenada é o
         // tempo restante do candle M1 (≈60s). Processar o resultado cedo (8s após entrada)
         // evita que o ciclo P6 fique no nível da proteção por quase 1 minuto.
-        const ehCandleRepeatP6 =
-          automacao.config?.gerenciamento === 'P6' &&
-          automacao.config?.estrategia === 'CandleRepeat';
-        const checkAt = ehCandleRepeatP6 ? enviada + 8000 : expiracaoReal - 2000;
+        // CandleRepeat usa Blitz (5s): resultado disponível em ~5s, independente do gerenciamento.
+        // Processar em 8s evita bloqueio do próximo sinal por quase 1 minuto.
+        const ehCandleRepeat = automacao.config?.estrategia === 'CandleRepeat';
+        const checkAt = ehCandleRepeat ? enviada + 8000 : expiracaoReal - 2000;
         const ehOpTravada = tempoDecorrido > duracaoOp + 90000; // op aberta há mais de duracao+90s
         if (Date.now() < checkAt && !ehOpTravada) return;
 
