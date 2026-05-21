@@ -299,6 +299,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const ultimaDirecaoCRRef = useRef<'compra' | 'venda' | null>(null);
   const aguardandoResetCRRef = useRef<boolean>(false);
   const ghostFiredCROpsRef = useRef(new Set<string>());
+  const ultimoResultadoCRTimestampRef = useRef<number>(0);
   const resetCorAnteriorCVelasRef = useRef<'alta' | 'baixa' | 'doji' | null>(null);
   const resetCorAnteriorCRRef = useRef<'alta' | 'baixa' | 'doji' | null>(null);
 
@@ -1105,6 +1106,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       if (ehM1CR) {
         if (segundos >= 54 && segundos < 57) { preAquecerConexao(); return; }
       }
+
+      // Cooldown de 3 min após resultado — garante que ciclo P6/Martingale esteja atualizado.
+      const COOLDOWN_CR_MS = 3 * 60 * 1000;
+      if (ultimoResultadoCRTimestampRef.current > 0 &&
+          Date.now() - ultimoResultadoCRTimestampRef.current < COOLDOWN_CR_MS) return;
 
       const usarAntecipar = ehM1CR && segundos >= 57;
       const sinalVelaIdx = usarAntecipar ? velas.length - 1 : velas.length - 2;
@@ -2452,6 +2458,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
           if (automacao.config?.estrategia === 'CandleRepeat') {
             operacaoCREmAndamentoRef.current = false;
+            ultimoResultadoCRTimestampRef.current = Date.now();
+            aguardandoResetCRRef.current = false;
+            resetCorAnteriorCRRef.current = null;
           }
 
           // Atualizar resultado no histórico (FluxoVelas)
@@ -2806,6 +2815,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       aguardandoResetCRRef.current = false;
       resetCorAnteriorCVelasRef.current = null;
       resetCorAnteriorCRRef.current = null;
+      ultimoResultadoCRTimestampRef.current = 0;
       const intervalMap: Record<string, string> = { M1: '1', M5: '5', M15: '15', M30: '30', M60: '60' };
       servicoVelas.conectar(config.ativo, intervalMap[config.timeframe] || '1');
       setAutomacao({
@@ -2927,6 +2937,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     aguardandoResetCRRef.current = false;
     resetCorAnteriorCVelasRef.current = null;
     resetCorAnteriorCRRef.current = null;
+    ultimoResultadoCRTimestampRef.current = 0;
     setCicloMartingale(0);
     setValorOperacaoAtual(0);
   }, []);
