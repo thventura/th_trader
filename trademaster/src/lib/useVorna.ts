@@ -289,8 +289,6 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   const operacaoCVelasEmAndamentoRef = useRef<boolean>(false);
   const ultimaDirecaoCVelasRef = useRef<'compra' | 'venda' | null>(null);
   const aguardandoResetCVelasRef = useRef<boolean>(false);
-  const ultimaCorSinalCVelasRef = useRef<'alta' | 'baixa' | null>(null);
-  const ultimaTsSinalCVelasRef = useRef<number>(0);
 
   // Candle Repeat
   const [analiseCR, setAnaliseCR] = useState<AnaliseCandleRepeat | null>(null);
@@ -912,40 +910,27 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
       const analise = analisarContinuacaoVelas(velas, usarAntecipar);
 
-      // Detectar vela que quebra a sequência → libera próxima entrada.
-      // Debounce de 2 ticks (250ms cada): exige a mesma cor "de reset" em 2 ticks consecutivos
-      // antes de confirmar. Previne falso reset causado por doji transitório nos segundos 57-59
-      // (vela em formação pode ter corpo mínimo momentaneamente antes de crescer).
-      if (aguardandoResetCVelasRef.current && analise.ultima_vela_cor) {
-        const corAtual = analise.ultima_vela_cor;
-        const precisaVermelho = ultimaDirecaoCVelasRef.current === 'compra';
-        const eCandidataReset = precisaVermelho
-          ? corAtual !== 'alta'   // doji ou vermelho quebram CALL
-          : corAtual !== 'baixa'; // doji ou verde quebram PUT
-        if (eCandidataReset && corAtual === resetCorAnteriorCVelasRef.current) {
-          aguardandoResetCVelasRef.current = false;
-          resetCorAnteriorCVelasRef.current = null;
-          console.log(`[CVelas] Sequência quebrada por vela ${corAtual}. Próxima entrada liberada.`);
-        } else {
-          resetCorAnteriorCVelasRef.current = eCandidataReset ? corAtual : null;
-        }
-      }
-
-      // Rastrear cor de cada vela de sinal por timestamp — mesmo velas bloqueadas pela SMA.
-      // Quando a 2ª+ vela consecutiva de mesma cor é detectada (mesmo sem entrada anterior),
-      // ativar aguardandoResetCVelasRef para exigir vela oposta antes da próxima entrada.
-      if (sinalVelaTsNorm !== 0 && sinalVelaTsNorm !== ultimaTsSinalCVelasRef.current) {
-        const corAtual = analise.ultima_vela_cor;
-        if (corAtual && corAtual !== 'doji') {
-          if (corAtual === ultimaCorSinalCVelasRef.current && !aguardandoResetCVelasRef.current) {
-            const direcaoDaCorAtual: 'compra' | 'venda' = corAtual === 'alta' ? 'compra' : 'venda';
-            aguardandoResetCVelasRef.current = true;
-            ultimaDirecaoCVelasRef.current = direcaoDaCorAtual;
-            console.log(`[CVelas] 2ª vela ${corAtual} consecutiva (sem entrada) → aguardando reset.`);
+      // Reset debounce: vela FECHADA de cor oposta confirma quebra da sequência.
+      // Usa velas[length-2] (última fechada) — não a vela em formação (length-1 aos 57-59s).
+      // Doji excluído: vela formando com corpo zero não é direção definitiva.
+      const velaFechadaResetCV = velas[velas.length - 2];
+      if (aguardandoResetCVelasRef.current && velaFechadaResetCV) {
+        const cCV = Math.abs(velaFechadaResetCV.fechamento - velaFechadaResetCV.abertura);
+        const rCV = velaFechadaResetCV.maxima - velaFechadaResetCV.minima;
+        const corFechadaCV = (rCV === 0 || cCV / rCV < 0.20)
+          ? 'doji' as const
+          : velaFechadaResetCV.fechamento >= velaFechadaResetCV.abertura ? 'alta' as const : 'baixa' as const;
+        if (corFechadaCV !== 'doji') {
+          const precisaVermelho = ultimaDirecaoCVelasRef.current === 'compra';
+          const eCandidataResetCV = precisaVermelho ? corFechadaCV === 'baixa' : corFechadaCV === 'alta';
+          if (eCandidataResetCV && corFechadaCV === resetCorAnteriorCVelasRef.current) {
+            aguardandoResetCVelasRef.current = false;
+            resetCorAnteriorCVelasRef.current = null;
+            console.log(`[CVelas] Sequência quebrada por vela ${corFechadaCV}. Próxima entrada liberada.`);
+          } else {
+            resetCorAnteriorCVelasRef.current = eCandidataResetCV ? corFechadaCV : null;
           }
-          ultimaCorSinalCVelasRef.current = corAtual;
         }
-        ultimaTsSinalCVelasRef.current = sinalVelaTsNorm;
       }
 
       if (!analise.operar || !analise.direcao_operacao || !analise.sinal_id) return;
