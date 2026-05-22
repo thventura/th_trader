@@ -8,11 +8,16 @@ import { BRANDING } from '../config/branding';
 import type { Vela } from '../types';
 import type { ActiveInfo } from '../lib/vorna';
 import { obterVelasViaRelay } from '../lib/vorna';
+import { obterConfigPlataforma } from '../lib/supabaseService';
+import type { ConfigAutomacaoPlataforma } from '../types';
+import { CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT } from '../types';
 import { analisarQuadrante } from '../lib/motor-quadrantes';
 import { analisarQuadrante5min } from '../lib/motor-quadrantes-5min';
 import { analisarFluxoVelas } from '../lib/motor-fluxo-velas';
 import { analisarImpulsoCorrecaoEngolfo } from '../lib/motor-impulso-correcao-engolfo';
 import { analisarLogicaPreco } from '../lib/motor-logica-preco';
+import { analisarContinuacaoVelas } from '../lib/motor-continuacao-velas';
+import { analisarCandleRepeat } from '../lib/motor-candle-repeat';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -210,6 +215,48 @@ function backtestLogicaPreco(velas: Vela[]): CicloResultado[] {
   return ciclos;
 }
 
+function backtestContinuacaoVelas(velas: Vela[]): CicloResultado[] {
+  const ciclos: CicloResultado[] = [];
+  const vistos = new Set<string>();
+  for (let i = 11; i < velas.length - 1; i++) {
+    const analise = analisarContinuacaoVelas(velas.slice(0, i + 1));
+    if (!analise.operar || !analise.sinal_id || !analise.direcao_operacao) continue;
+    if (vistos.has(analise.sinal_id)) continue;
+    vistos.add(analise.sinal_id);
+    const proxima = velas[i + 1];
+    const win = analise.direcao_operacao === 'compra'
+      ? proxima.cor === 'alta'
+      : proxima.cor === 'baixa';
+    ciclos.push({ timestamp: proxima.timestamp, direcao: analise.direcao_operacao, resultado: win ? 'vitoria' : 'derrota', confianca: analise.confianca });
+  }
+  return ciclos;
+}
+
+function backtestCandleRepeat(velas: Vela[]): CicloResultado[] {
+  const ciclos: CicloResultado[] = [];
+  let aguardandoReset = false;
+  let ultimaDirecao: 'compra' | 'venda' | null = null;
+  for (let i = 1; i < velas.length - 1; i++) {
+    const analise = analisarCandleRepeat([velas[i]]);
+    if (!analise.operar || !analise.direcao_operacao || !analise.ultima_vela_cor) continue;
+    const cor = analise.ultima_vela_cor;
+    if (aguardandoReset && ultimaDirecao) {
+      const eCandidataReset = ultimaDirecao === 'compra' ? cor === 'baixa' : cor === 'alta';
+      if (eCandidataReset) aguardandoReset = false;
+    }
+    if (aguardandoReset) continue;
+    const proxima = velas[i + 1];
+    const win = analise.direcao_operacao === 'compra'
+      ? proxima.cor === 'alta'
+      : proxima.cor === 'baixa';
+    ciclos.push({ timestamp: proxima.timestamp, direcao: analise.direcao_operacao, resultado: win ? 'vitoria' : 'derrota', confianca: 80 });
+    aguardandoReset = true;
+    ultimaDirecao = analise.direcao_operacao;
+    i += 3; // cooldown 3 min = 3 velas M1
+  }
+  return ciclos;
+}
+
 function backtestCavaloTroia(velas: Vela[]): CicloResultado[] {
   // Deterministic historical backtest — does NOT call analisarCavaloTroia (which uses new Date()).
   // CavaloTroia enters at the start of minutes :02, :22, :42.
@@ -271,7 +318,7 @@ async function analisarEstrategia(
   const raw = await obterVelasViaRelay(ativoId, 60, undefined, count);
   if (!raw.length) throw new Error('Sem dados de velas disponíveis');
 
-  const todas = raw.map(rawToVela);
+  const todas = raw.map(rawToVela).sort((a, b) => a.timestamp - b.timestamp);
   const velas = filtrarVelasPorJanela(todas, janela);
   if (velas.length < 5) throw new Error('Poucos dados no período selecionado');
 
@@ -297,6 +344,11 @@ async function analisarEstrategia(
       const inicio = velas[0]?.timestamp ?? 0;
       return c.timestamp >= inicio;
     });
+    case 'ContinuacaoVelas': return backtestContinuacaoVelas(velasComBuffer).filter(c => {
+      const inicio = velas[0]?.timestamp ?? 0;
+      return c.timestamp >= inicio;
+    });
+    case 'CandleRepeat': return backtestCandleRepeat(velas);
     default: throw new Error(`Estratégia "${estrategia}" não suportada`);
   }
 }
@@ -875,17 +927,20 @@ function CardMetrica({ config, janelaTempo, ativosSDK, onVerCiclos, onRemover }:
 
 // ── FormAdicionarCard ──────────────────────────────────────────────────────────
 
-function FormAdicionarCard({ onAdicionar, onCancelar, ativosSDK }: {
+function FormAdicionarCard({ onAdicionar, onCancelar, ativosSDK, estrategiasAtivas, nomesEstrategias }: {
   onAdicionar: (config: Omit<CardConfig, 'id'>) => void;
   onCancelar: () => void;
   ativosSDK: ActiveInfo[];
+  estrategiasAtivas: string[];
+  nomesEstrategias?: Partial<Record<string, string>>;
 }) {
   const ativos = ativosSDK.length > 0
     ? ativosSDK.filter(a => !a.isSuspended || a.isOtc).map(a => a.displayName)
     : TODOS_ATIVOS;
   const uniqueAtivos = Array.from(new Set(ativos)).sort();
+  const estrategiasFiltradas = ESTRATEGIAS.filter(s => estrategiasAtivas.includes(s));
   const [ativo, setAtivo] = useState(uniqueAtivos[0] || 'EUR/USD');
-  const [estrategia, setEstrategia] = useState(ESTRATEGIAS[0]);
+  const [estrategia, setEstrategia] = useState(estrategiasFiltradas[0] || ESTRATEGIAS[0]);
 
   return (
     <div className="glass-card p-5 border border-apex-trader-primary/20 h-full flex flex-col gap-3">
@@ -901,7 +956,11 @@ function FormAdicionarCard({ onAdicionar, onCancelar, ativosSDK }: {
         <label className="text-xs text-slate-400 mb-1 block">Estratégia</label>
         <select value={estrategia} onChange={e => setEstrategia(e.target.value)}
           className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-apex-trader-primary/50">
-          {ESTRATEGIAS.map(s => <option key={s} value={s}>{BRANDING.strategyLabels[s] || s}</option>)}
+          {estrategiasFiltradas.map(s => (
+            <option key={s} value={s}>
+              {nomesEstrategias?.[s]?.trim() || BRANDING.strategyLabels[s] || s}
+            </option>
+          ))}
         </select>
       </div>
       <div className="flex gap-2 mt-auto">
@@ -927,6 +986,13 @@ export default function SecaoMetricasEstrategia({ ativosSDK }: { ativosSDK: Acti
   });
   const [modalState, setModalState] = useState<{ config: CardConfig; ciclos: CicloResultado[] } | null>(null);
   const [mostrandoForm, setMostrandoForm] = useState(false);
+  const [configPlataforma, setConfigPlataforma] = useState<ConfigAutomacaoPlataforma>(
+    CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT
+  );
+
+  useEffect(() => {
+    obterConfigPlataforma().then(cfg => { if (cfg) setConfigPlataforma(cfg); });
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cartoesConfig)); } catch {/* ignore */}
@@ -991,6 +1057,8 @@ export default function SecaoMetricasEstrategia({ ativosSDK }: { ativosSDK: Acti
                 ativosSDK={ativosSDK}
                 onAdicionar={adicionarCard}
                 onCancelar={() => setMostrandoForm(false)}
+                estrategiasAtivas={configPlataforma.estrategias_ativas}
+                nomesEstrategias={configPlataforma.nomes_estrategias}
               />
             </motion.div>
           ) : cartoesConfig.length < MAX_CARDS ? (
