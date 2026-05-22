@@ -1143,10 +1143,6 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             console.warn(`[CR] Op ${opF.id} travada. Liberando flag — polling registrará o resultado.`);
             operacaoCREmAndamentoRef.current = false;
             ghostFiredCROpsRef.current.add(opF.id);
-            if (config.gerenciamento === 'P6') {
-              cicloMartingaleRef.current = 0;
-              setCicloMartingale(0);
-            }
           }
           // Não retorna — permite novo sinal mesmo com op fantasma
         } else {
