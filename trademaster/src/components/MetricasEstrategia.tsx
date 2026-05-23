@@ -789,7 +789,7 @@ function CardMetrica({ config, janelaTempo, ativosSDK, onVerCiclos, onRemover }:
         <div className="p-4 flex flex-col gap-3 flex-1">
           {/* Remover */}
           <button onClick={onRemover}
-            className="absolute top-3 right-3 p-1 rounded-lg text-slate-600 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all z-10"
+            className="absolute top-3 right-3 p-1 rounded-lg text-slate-400 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all z-10"
             title="Remover">
             <X size={13} />
           </button>
