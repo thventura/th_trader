@@ -17,24 +17,11 @@ interface Comunidade {
 
 const comunidades: Comunidade[] = [
   {
-    titulo: 'Discord',
-    descricao: 'Comunidade principal de traders',
-    detalhe:
-      'Participe da nossa comunidade no Discord para interagir com outros traders, compartilhar dicas, aprender mais e trocar experiências em tempo real.',
-    link: 'https://discord.gg/PPsNv92YKJ',
-    label: 'Entrar no Discord',
-    icon: MessageCircle,
-    cor: 'text-indigo-400',
-    corBg: 'bg-indigo-500/10',
-    corBorda: 'border-indigo-500/20',
-    corBotao: 'bg-indigo-500 hover:bg-indigo-600',
-  },
-  {
     titulo: 'WhatsApp',
     descricao: 'Comunidade de atualizações e novidades',
     detalhe:
       'Entre para a nossa comunidade no WhatsApp para receber atualizações rápidas, trocar ideias e ficar por dentro das novidades do mercado.',
-    link: 'https://chat.whatsapp.com/CPUJI4DQ1Da5JH1ZMAUKDU',
+    link: 'https://chat.whatsapp.com/GTPVOZz8FuVJMiIxmyUX7K',
     label: 'Entrar no WhatsApp',
     icon: MessageCircle,
     cor: 'text-emerald-400',
@@ -47,13 +34,13 @@ const comunidades: Comunidade[] = [
     descricao: 'Atendimento direto com a equipe',
     detalhe:
       'Precisa de ajuda ou tem dúvidas? Clique no link abaixo para entrar em contato diretamente com o nosso suporte e receber orientação personalizada.',
-    link: 'https://wa.me/+5588982297684?text=Ola%20gostaria%20de%20tirar%20uma%20duvida',
+    link: 'https://wa.me/5521999725160?text=Ola%20gostaria%20de%20tirar%20uma%20duvida',
     label: 'Falar com Suporte',
     icon: Headphones,
-    cor: 'text-trademaster-blue',
-    corBg: 'bg-trademaster-blue/10',
-    corBorda: 'border-trademaster-blue/20',
-    corBotao: 'bg-trademaster-blue hover:bg-trademaster-blue/80',
+    cor: 'text-sky-400',
+    corBg: 'bg-sky-500/10',
+    corBorda: 'border-sky-500/20',
+    corBotao: 'bg-sky-500 hover:bg-sky-600',
   },
 ];
 
