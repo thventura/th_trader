@@ -31,6 +31,7 @@ export const BRANDING = {
     'ImpulsoCorrecaoEngolfo',
     'CavaloTroia',
     'CandleRepeat',
+    'ContinuacaoVelas',
   ] as const,
 
   // Nomes de exibição das estratégias (usados em dropdowns, cards, etc.)
@@ -42,6 +43,7 @@ export const BRANDING = {
     ImpulsoCorrecaoEngolfo: 'Impulso-Correção-Engolfo',
     CavaloTroia: 'Cavalo de Troia (M2, 20min)',
     CandleRepeat: 'Candle Repeat',
+    ContinuacaoVelas: 'Continuação de Velas',
   } as Record<string, string>,
 
   // ── Gerenciamentos disponíveis ───────────────────────────────────────────────

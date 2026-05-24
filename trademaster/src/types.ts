@@ -213,7 +213,7 @@ export interface ConfigAutomacaoPlataforma {
 }
 
 export const CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT: ConfigAutomacaoPlataforma = {
-  estrategias_ativas: ['Quadrantes', 'Quadrantes5min', 'FluxoVelas', 'LogicaDoPreco', 'ImpulsoCorrecaoEngolfo', 'CavaloTroia', 'CandleRepeat'],
+  estrategias_ativas: ['Quadrantes', 'Quadrantes5min', 'FluxoVelas', 'LogicaDoPreco', 'ImpulsoCorrecaoEngolfo', 'CavaloTroia', 'CandleRepeat', 'ContinuacaoVelas'],
   gerenciamentos_ativos: ['Fixo', 'Martingale', 'Soros', 'P6'],
 };
 
