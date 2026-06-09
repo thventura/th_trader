@@ -344,15 +344,7 @@ function PainelAutomacao({
           </div>
         )}
 
-        {/* Banner: conta DEMO ativa */}
-        {emOperacao && automacao.config?.tipo_conta === 'DEMO' && (
-          <div className="rounded-lg bg-amber-900/30 border border-amber-500/50 p-3 flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-            <p className="text-amber-300 text-sm font-semibold">Operando em conta DEMO — nenhum dinheiro real será utilizado</p>
-          </div>
-        )}
-
-        {/* Formulário de Configuração */}
+{/* Formulário de Configuração */}
         <div className={cn('space-y-4', (emOperacao || afiliadoAprovado === false) && 'opacity-50 pointer-events-none')}>
           {/* Linha 1: Estratégia + Gerenciamento + Quantidade */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -515,33 +507,6 @@ function PainelAutomacao({
                 <option value="binary">Binária</option>
                 <option value="digital">Digital</option>
               </select>
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Conta de Operação</label>
-              <div className="flex rounded-xl overflow-hidden border border-white/5">
-                <button
-                  type="button"
-                  onClick={() => !emOperacao && setForm((prev: ConfigAutomacao) => ({ ...prev, tipo_conta: 'REAL' }))}
-                  className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-                    (form.tipo_conta ?? 'REAL') === 'REAL'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-800/50 text-slate-400 hover:text-slate-200'
-                  } ${emOperacao ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  Real
-                </button>
-                <button
-                  type="button"
-                  onClick={() => !emOperacao && setForm((prev: ConfigAutomacao) => ({ ...prev, tipo_conta: 'DEMO' }))}
-                  className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-                    form.tipo_conta === 'DEMO'
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-slate-800/50 text-slate-400 hover:text-slate-200'
-                  } ${emOperacao ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  Demo
-                </button>
-              </div>
             </div>
             <div>
               <label className="text-xs text-slate-400 mb-1.5 block">Expiração</label>
