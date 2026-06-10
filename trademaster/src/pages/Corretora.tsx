@@ -151,6 +151,8 @@ function PainelAutomacao({
   nivelP6,
   bancaP6,
   perdasAcumuladasP6,
+  sessaoP10,
+  perdasP10,
 }: {
   automacao: EstadoAutomacao;
   onIniciar: (config: ConfigAutomacao) => void;
@@ -166,6 +168,8 @@ function PainelAutomacao({
   nivelP6: number;
   bancaP6: number;
   perdasAcumuladasP6: number;
+  sessaoP10: number;
+  perdasP10: number;
 }) {
   const [configPlataforma, setConfigPlataforma] = React.useState<ConfigAutomacaoPlataforma>(
     { ...CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT }
@@ -378,6 +382,7 @@ function PainelAutomacao({
                 {configPlataforma.gerenciamentos_ativos.includes('Martingale') && <option value="Martingale">Proteção</option>}
                 {configPlataforma.gerenciamentos_ativos.includes('Soros') && <option value="Soros">Soros</option>}
                 {configPlataforma.gerenciamentos_ativos.includes('P6') && <option value="P6">P6 — 6 Proteções</option>}
+                {configPlataforma.gerenciamentos_ativos.includes('P10') && <option value="P10">P10 — Recuperação Progressiva</option>}
               </select>
             </div>
             {form.gerenciamento === 'P6' ? (
@@ -393,6 +398,33 @@ function PainelAutomacao({
                   disabled={emOperacao}
                 />
               </div>
+            ) : form.gerenciamento === 'P10' ? (
+              <>
+                <div>
+                  <label className="text-xs text-slate-400 mb-1.5 block">Lucro Alvo por Sessão (R$)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={form.lucro_alvo_p10 ?? 30}
+                    onChange={e => atualizarForm('lucro_alvo_p10', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2.5 bg-slate-800/50 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-apex-trader-primary/50"
+                    disabled={emOperacao}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 mb-1.5 block">Sessões por dia (P10)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={form.sessoes_alvo_dia ?? 1}
+                    onChange={e => atualizarForm('sessoes_alvo_dia', parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2.5 bg-slate-800/50 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-apex-trader-primary/50"
+                    disabled={emOperacao}
+                  />
+                </div>
+              </>
             ) : (
               <div>
                 <label className="text-xs text-slate-400 mb-1.5 block">Quantidade de Operações</label>
@@ -409,8 +441,8 @@ function PainelAutomacao({
             )}
           </div>
 
-          {/* Linha 2: Stop + Divisão + Valor por Op (oculto para P6) */}
-          {form.gerenciamento !== 'P6' && (
+          {/* Linha 2: Stop + Divisão + Valor por Op (oculto para P6/P10) */}
+          {form.gerenciamento !== 'P6' && form.gerenciamento !== 'P10' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-slate-400 mb-1.5 block">Valor do Stop (R$)</label>
@@ -955,8 +987,10 @@ function PainelAutomacao({
           <div className="p-4 bg-slate-800/30 border border-white/5 rounded-xl">
             {(() => {
               const ehP6 = automacao.config?.gerenciamento === 'P6';
+              const ehP10 = automacao.config?.gerenciamento === 'P10';
+              const ehSessaoBased = ehP6 || ehP10;
               const sessoesAlvo = automacao.config?.sessoes_alvo_dia ?? 1;
-              const barraProgresso = ehP6
+              const barraProgresso = ehSessaoBased
                 ? sessoesAlvo > 0 ? (sessoesConcluidasHoje / sessoesAlvo) * 100 : 0
                 : automacao.operacoes_total > 0 ? (automacao.operacoes_executadas / automacao.operacoes_total) * 100 : 0;
 
@@ -966,7 +1000,7 @@ function PainelAutomacao({
                     <div>
                       <p className="text-xs text-slate-500 mb-1">Executadas</p>
                       <p className="text-lg font-bold text-white">
-                        {ehP6
+                        {ehSessaoBased
                           ? automacao.operacoes_executadas
                           : `${automacao.operacoes_executadas}/${automacao.operacoes_total}`}
                       </p>
@@ -986,7 +1020,7 @@ function PainelAutomacao({
                       </p>
                     </div>
                     <div>
-                      {ehP6 ? (
+                      {ehSessaoBased ? (
                         <>
                           <p className="text-xs text-slate-500 mb-1">Sessões</p>
                           <p className="text-lg font-bold text-apex-trader-primary">
@@ -1059,6 +1093,51 @@ function PainelAutomacao({
                           <p className="text-[10px] text-slate-500 mb-1">Perdas Acumuladas</p>
                           <p className="text-sm font-bold text-red-400">
                             {formatCurrency(perdasAcumuladasP6)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Painel P10 Exclusivo */}
+                  {automacao.config?.gerenciamento === 'P10' && (
+                    <div className="mt-3 p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-2">
+                      <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+                        Gestão P10
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-slate-500 mb-1">Sessão</p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {Array.from({ length: 10 }, (_, i) => (
+                              <span
+                                key={i}
+                                className={cn(
+                                  'w-4 h-4 rounded-full border transition-colors',
+                                  i < sessaoP10 - 1
+                                    ? 'bg-red-500 border-red-500'
+                                    : i === sessaoP10 - 1
+                                    ? 'bg-blue-400 border-blue-400'
+                                    : 'bg-transparent border-slate-600'
+                                )}
+                              />
+                            ))}
+                            <span className="text-xs text-slate-400 ml-1">{sessaoP10}/10</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Perdas Acumuladas</p>
+                          <p className="text-sm font-bold text-red-400">
+                            {formatCurrency(perdasP10)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Sessões Hoje</p>
+                          <p className="text-sm font-bold text-white">
+                            {sessoesConcluidasHoje}
+                            <span className="text-slate-500 font-normal">
+                              /{automacao.config?.sessoes_alvo_dia ?? 1}
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -2782,6 +2861,8 @@ function PainelCorretora({
   nivelP6,
   bancaP6,
   perdasAcumuladasP6,
+  sessaoP10,
+  perdasP10,
 }: {
   sessao: NonNullable<ReturnType<typeof useVorna>['sessao']>;
   onDesconectar: () => void;
@@ -2818,6 +2899,8 @@ function PainelCorretora({
   nivelP6: number;
   bancaP6: number;
   perdasAcumuladasP6: number;
+  sessaoP10: number;
+  perdasP10: number;
 }) {
   const [atualizando, setAtualizando] = useState(false);
   const [velasAberto, setVelasAberto] = useState(false);
@@ -2957,6 +3040,8 @@ function PainelCorretora({
         nivelP6={nivelP6}
         bancaP6={bancaP6}
         perdasAcumuladasP6={perdasAcumuladasP6}
+        sessaoP10={sessaoP10}
+        perdasP10={perdasP10}
       />
 
       {/* Barra de diagnóstico — visível apenas durante automação ativa */}
@@ -3468,6 +3553,8 @@ export default function Corretora() {
     nivelP6,
     bancaP6,
     perdasAcumuladasP6,
+    sessaoP10,
+    perdasP10,
   } = useVorna(userId, profile);
 
   // Quando conectar com sucesso, libera o painel novamente
@@ -3528,6 +3615,8 @@ export default function Corretora() {
           nivelP6={nivelP6}
           bancaP6={bancaP6}
           perdasAcumuladasP6={perdasAcumuladasP6}
+          sessaoP10={sessaoP10}
+          perdasP10={perdasP10}
         />
       </ErrorBoundary>
     );

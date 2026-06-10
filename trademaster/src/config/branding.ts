@@ -47,7 +47,7 @@ export const BRANDING = {
   } as Record<string, string>,
 
   // ── Gerenciamentos disponíveis ───────────────────────────────────────────────
-  managements: ['Fixo', 'Martingale', 'Soros', 'P6'] as const,
+  managements: ['Fixo', 'Martingale', 'Soros', 'P6', 'P10'] as const,
 
   // ── VornaBroker ──────────────────────────────────────────────────────────────
   vornaPlatformId: 9,

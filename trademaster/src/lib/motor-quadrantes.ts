@@ -1,5 +1,6 @@
 import type { Vela, AnaliseQuadrante, Gerenciamento } from '../types';
 import { calcularP6Entradas } from './motor-p6';
+import { calcularEntradaP10 } from './motor-p10';
 
 // ── Quadrantes ──
 // Cada hora tem 6 quadrantes de 10 minutos (10 velas M1 cada)
@@ -165,6 +166,10 @@ export function calcularValorOperacao(params: {
   ciclo_martingale: number;
   max_martingale: number;
   banca_atual?: number;
+  perdas_acumuladas_p10?: number;
+  lucro_alvo_p10?: number;
+  aguardando_soros_p10?: boolean;
+  entrada_soros_p10?: number;
 }): { valor: number; novo_ciclo: number } {
   const {
     estrategia,
@@ -176,6 +181,10 @@ export function calcularValorOperacao(params: {
     ciclo_martingale,
     max_martingale,
     banca_atual,
+    perdas_acumuladas_p10,
+    lucro_alvo_p10,
+    aguardando_soros_p10,
+    entrada_soros_p10,
   } = params;
 
   // P6: lê o nível atual diretamente — o result handler é responsável por avançar o nível.
@@ -184,6 +193,15 @@ export function calcularValorOperacao(params: {
     const nivel = Math.min(ciclo_martingale, 5);
     const entradas = calcularP6Entradas(capital, payout);
     return { valor: entradas[nivel], novo_ciclo: ciclo_martingale };
+  }
+
+  // P10: soros pendente usa valor pré-calculado; nova sessão recalcula a partir das perdas acumuladas.
+  if (estrategia === 'P10') {
+    if (aguardando_soros_p10) {
+      return { valor: entrada_soros_p10 ?? valor_base, novo_ciclo: ciclo_martingale };
+    }
+    const entrada = calcularEntradaP10(perdas_acumuladas_p10 ?? 0, lucro_alvo_p10 ?? 30, payout);
+    return { valor: entrada, novo_ciclo: ciclo_martingale };
   }
 
   // Empate: repetir o mesmo valor e ciclo (sem avançar nem resetar)

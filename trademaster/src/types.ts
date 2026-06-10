@@ -165,7 +165,7 @@ export interface Op {
 
 // FORK: ao adicionar/remover estratégias em src/config/branding.ts, atualize este tipo também.
 export type EstrategiaAnalise = 'Quadrantes' | 'Quadrantes5min' | 'FluxoVelas' | 'LogicaDoPreco' | 'ImpulsoCorrecaoEngolfo' | 'CavaloTroia' | 'ContinuacaoVelas' | 'CandleRepeat';
-export type Gerenciamento = 'Fixo' | 'Martingale' | 'Soros' | 'P6';
+export type Gerenciamento = 'Fixo' | 'Martingale' | 'Soros' | 'P6' | 'P10';
 export type StatusAutomacao = 'aguardando' | 'em_operacao' | 'pausado' | 'finalizado';
 export type ModoFluxo = '2-3' | '3+' | 'automatico';
 
@@ -197,10 +197,12 @@ export interface ConfigAutomacao {
   instrumento_tipo?: 'blitz' | 'binary' | 'digital';
   // Duração da expiração em segundos (60=M1, 120=M2, 300=M5, 900=M15, 1800=M30)
   duracao_expiracao?: number;
-  // P6: número de sessões alvo por dia (cada TAKE = 1 sessão)
+  // P6/P10: número de sessões alvo por dia (cada TAKE = 1 sessão)
   sessoes_alvo_dia?: number;
   // Conta onde as operações serão executadas
   tipo_conta?: 'REAL' | 'DEMO';
+  // P10: valor-alvo de lucro por sessão
+  lucro_alvo_p10?: number;
 }
 
 export const AUTOMACAO_PLATAFORMA_KEY = 'trademaster_config_automacao_plataforma';
@@ -214,7 +216,7 @@ export interface ConfigAutomacaoPlataforma {
 
 export const CONFIG_AUTOMACAO_PLATAFORMA_DEFAULT: ConfigAutomacaoPlataforma = {
   estrategias_ativas: ['Quadrantes', 'Quadrantes5min', 'FluxoVelas', 'LogicaDoPreco', 'ImpulsoCorrecaoEngolfo', 'CavaloTroia', 'CandleRepeat', 'ContinuacaoVelas'],
-  gerenciamentos_ativos: ['Fixo', 'Martingale', 'Soros', 'P6'],
+  gerenciamentos_ativos: ['Fixo', 'Martingale', 'Soros', 'P6', 'P10'],
 };
 
 export interface EstadoAutomacao {

@@ -43,6 +43,7 @@ import {
   formatarCountdown,
 } from './motor-quadrantes';
 import { calcularP6Entradas } from './motor-p6';
+import { calcularEntradaP10, calcularSorosP10, MAX_SESSOES_P10 } from './motor-p10';
 import {
   obterQuadranteAtual5min,
   analisarQuadrante5min,
@@ -135,6 +136,8 @@ export interface UseVornaRetorno {
   nivelP6: number;
   bancaP6: number;
   perdasAcumuladasP6: number;
+  sessaoP10: number;
+  perdasP10: number;
   historicoQuadrantes: Quadrante[];
   // Quadrantes 5min
   quadrante5minAtual: Quadrante5min | null;
@@ -226,6 +229,89 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
   // P6: states para re-render da UI
   const [bancaP6, setBancaP6] = useState<number>(0);
   const [perdasAcumuladasP6, setPerdasAcumuladasP6] = useState<number>(0);
+
+  // P10 (GDD 2.1): sessão atual (1-10), perdas acumuladas, soros pendente
+  const sessaoAtualP10Ref = useRef<number>(1);
+  const perdasAcumuladasP10Ref = useRef<number>(0);
+  const aguardandoSorosP10Ref = useRef<boolean>(false);
+  const entradaSorosP10Ref = useRef<number>(0);
+  const direcaoSorosP10Ref = useRef<'compra' | 'venda' | null>(null);
+  const [sessaoP10, setSessaoP10] = useState<number>(1);
+  const [perdasP10, setPerdasP10] = useState<number>(0);
+
+  // P10 (GDD 2.1): processa o resultado de uma operação (entrada principal ou soros)
+  // e atualiza sessão/perdas/soros pendente conforme as regras de reset.
+  const processarResultadoP10 = (
+    resultado: 'vitoria' | 'derrota' | 'empate',
+    valorUsado: number,
+    direcaoUsada: 'compra' | 'venda',
+    config: ConfigAutomacao
+  ) => {
+    const isSoros = aguardandoSorosP10Ref.current;
+    const sessaoAtual = sessaoAtualP10Ref.current;
+    const lucroAlvo = config.lucro_alvo_p10 ?? 30;
+    const payout = config.payout || 88;
+
+    if (resultado === 'vitoria') {
+      if (isSoros || sessaoAtual === 1) {
+        // Soros vencido (sessões 2-10) ou vitória na sessão 1 → reset completo
+        perdasAcumuladasP10Ref.current = 0;
+        sessaoAtualP10Ref.current = 1;
+        aguardandoSorosP10Ref.current = false;
+        direcaoSorosP10Ref.current = null;
+        entradaSorosP10Ref.current = 0;
+        setSessaoP10(1);
+        setPerdasP10(0);
+        const proximaEntrada = calcularEntradaP10(0, lucroAlvo, payout);
+        setValorOperacaoAtual(proximaEntrada);
+        valorAnteriorRef.current = proximaEntrada;
+        setSessoesConcluidasHoje(prev => {
+          const novas = prev + 1;
+          const alvo = config.sessoes_alvo_dia ?? 1;
+          if (novas >= alvo) {
+            setAutomacao(p => ({ ...p, status: 'finalizado', ultima_verificacao: `Meta diária P10 atingida: ${novas}/${alvo} sessões.` }));
+          }
+          return novas;
+        });
+      } else {
+        // Vitória na entrada principal (sessões 2-10) → aguardar soros automático
+        const soros = calcularSorosP10(valorUsado, payout);
+        entradaSorosP10Ref.current = soros;
+        direcaoSorosP10Ref.current = direcaoUsada;
+        aguardandoSorosP10Ref.current = true;
+        setValorOperacaoAtual(soros);
+        valorAnteriorRef.current = soros;
+      }
+    } else if (resultado === 'derrota') {
+      const valorPerdido = isSoros ? entradaSorosP10Ref.current : valorUsado;
+      perdasAcumuladasP10Ref.current += valorPerdido;
+      aguardandoSorosP10Ref.current = false;
+      direcaoSorosP10Ref.current = null;
+
+      const novaSessao = sessaoAtual + 1;
+      if (novaSessao > MAX_SESSOES_P10) {
+        // Sessão 10 queimada → reinicia ciclo
+        perdasAcumuladasP10Ref.current = 0;
+        sessaoAtualP10Ref.current = 1;
+        setSessaoP10(1);
+        setPerdasP10(0);
+      } else {
+        sessaoAtualP10Ref.current = novaSessao;
+        setSessaoP10(novaSessao);
+        setPerdasP10(perdasAcumuladasP10Ref.current);
+      }
+      const proximaEntrada = calcularEntradaP10(perdasAcumuladasP10Ref.current, lucroAlvo, payout);
+      setValorOperacaoAtual(proximaEntrada);
+      valorAnteriorRef.current = proximaEntrada;
+    } else {
+      // Empate: mantém sessão/perdas, recalcula próxima entrada (soros pendente ou nova sessão)
+      const proximaEntrada = aguardandoSorosP10Ref.current
+        ? entradaSorosP10Ref.current
+        : calcularEntradaP10(perdasAcumuladasP10Ref.current, lucroAlvo, payout);
+      setValorOperacaoAtual(proximaEntrada);
+      valorAnteriorRef.current = proximaEntrada;
+    }
+  };
 
   const [historicoQuadrantes, setHistoricoQuadrantes] = useState<Quadrante[]>([]);
 
@@ -600,8 +686,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[FluxoVelas] >>> GATILHO TICK AOS ${segundos}s! <<<`);
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
-      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) {
         console.warn(`[FluxoVelas] 🛑 Automação interrompida: Meta=${atingiuMeta}, Stop=${atingiuStop}`);
@@ -619,11 +705,20 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
         banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        perdas_acumuladas_p10: perdasAcumuladasP10Ref.current,
+        lucro_alvo_p10: config.lucro_alvo_p10 ?? 30,
+        aguardando_soros_p10: aguardandoSorosP10Ref.current,
+        entrada_soros_p10: entradaSorosP10Ref.current,
       });
 
       setCicloMartingale(novo_ciclo);
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
+
+      // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+      const direcaoFinalFV: 'compra' | 'venda' = (config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && direcaoSorosP10Ref.current)
+        ? direcaoSorosP10Ref.current
+        : analise.direcao_operacao;
 
       // Pré-aquecer conexão SDK agora (57-58s) para que blitz.buy() dispare sem latência no segundo 0
       preAquecerConexao();
@@ -639,16 +734,16 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[FluxoVelas] Entrada agendada para +${Math.round(msAteVelaFV)}ms (virada de vela)`);
       pendingEntryTimerRef.current = window.setTimeout(() => {
         pendingEntryTimerRef.current = null;
-        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao, valor, 60, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+        comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalFV, valor, 60, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
           .then(async id => {
             console.log(`[FluxoVelas] Ordem enviada! ID: ${id}`);
             setOperacoesAbertas(prev => [...prev, {
-              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioFV, duracao: 60, status: 'enviada',
+              id, ativo: config.ativo, direcao: direcaoFinalFV, valor, hora_envio: horaEnvioFV, duracao: 60, status: 'enviada',
             }]);
 
             setEstadoFluxoVelas(prev => ({
               ...prev,
-              historico_resultados: [{ id, timestamp: new Date().toISOString(), ativo: config.ativo, timeframe: config.timeframe, modo: analise.modo_ativo, direcao: analise.direcao_operacao!, resultado: 'vitoria', lucro: 0, janela_horas: config.janela_horas || 1 }, ...prev.historico_resultados].slice(0, 50)
+              historico_resultados: [{ id, timestamp: new Date().toISOString(), ativo: config.ativo, timeframe: config.timeframe, modo: analise.modo_ativo, direcao: direcaoFinalFV, resultado: 'vitoria', lucro: 0, janela_horas: config.janela_horas || 1 }, ...prev.historico_resultados].slice(0, 50)
             }));
 
             try {
@@ -706,8 +801,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       console.log(`[LogicaDoPreco] >>> PADRÃO DETECTADO às ${agora.toLocaleTimeString()}! <<<`);
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
-      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
 
@@ -722,11 +817,20 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
         banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        perdas_acumuladas_p10: perdasAcumuladasP10Ref.current,
+        lucro_alvo_p10: config.lucro_alvo_p10 ?? 30,
+        aguardando_soros_p10: aguardandoSorosP10Ref.current,
+        entrada_soros_p10: entradaSorosP10Ref.current,
       });
 
       setCicloMartingale(novo_ciclo);
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
+
+      // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+      const direcaoFinalLP: 'compra' | 'venda' = (config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && direcaoSorosP10Ref.current)
+        ? direcaoSorosP10Ref.current
+        : analise.direcao_operacao!;
 
       operacaoLPEmAndamentoRef.current = true;
       ultimaExecucaoLPRef.current = Date.now();
@@ -738,18 +842,18 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const segundosDesdeInicio = totalSegundosNoHora % candleDuracao;
       const duracao = Math.max(5, candleDuracao - segundosDesdeInicio);
 
-      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+      comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalLP, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
         .then(async id => {
           console.log(`[LogicaDoPreco] Ordem enviada! ID: ${id}`);
           setOperacoesAbertas(prev => [...prev, {
-            id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: new Date().toISOString(), duracao, status: 'enviada',
+            id, ativo: config.ativo, direcao: direcaoFinalLP, valor, hora_envio: new Date().toISOString(), duracao, status: 'enviada',
           }]);
 
           setHistoricoLP(prev => [{
             id,
             timestamp: new Date().toISOString(),
             ativo: config.ativo,
-            direcao: analise.direcao_operacao!,
+            direcao: direcaoFinalLP,
             valor,
             resumo: analise.resumo,
             confianca: analise.confianca,
@@ -811,8 +915,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       }
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
-      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
 
@@ -827,11 +931,20 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
         banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        perdas_acumuladas_p10: perdasAcumuladasP10Ref.current,
+        lucro_alvo_p10: config.lucro_alvo_p10 ?? 30,
+        aguardando_soros_p10: aguardandoSorosP10Ref.current,
+        entrada_soros_p10: entradaSorosP10Ref.current,
       });
 
       setCicloMartingale(novo_ciclo);
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
+
+      // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+      const direcaoFinalICE: 'compra' | 'venda' = (config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && direcaoSorosP10Ref.current)
+        ? direcaoSorosP10Ref.current
+        : analise.direcao_operacao!;
 
       operacaoICEEmAndamentoRef.current = true;
 
@@ -841,18 +954,18 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       const candleDuracao = duracaoCandle[config.timeframe] || 60;
       const segundosDesdeInicio = totalSegundosNoHora % candleDuracao;
       const duracao = Math.max(5, candleDuracao - segundosDesdeInicio);
-      
+
       const todasVelas = servicoVelas.obterTodasVelas();
       const precoEntrada = todasVelas[todasVelas.length - 1]?.fechamento;
       const horaEnvioReal = new Date().toISOString();
 
       console.log(`[ICE] >>> PADRÃO DETECTADO: ${analise.resumo}`);
 
-      comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+      comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalICE, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
         .then(async id => {
           console.log(`[ICE] Ordem enviada! ID: ${id}`);
           setOperacoesAbertas(prev => [...prev, {
-            id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioReal, duracao, status: 'enviada', preco_entrada: precoEntrada
+            id, ativo: config.ativo, direcao: direcaoFinalICE, valor, hora_envio: horaEnvioReal, duracao, status: 'enviada', preco_entrada: precoEntrada
           }]);
           try {
             const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
@@ -957,8 +1070,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       }
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
-      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
 
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
 
@@ -973,6 +1086,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
         banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        perdas_acumuladas_p10: perdasAcumuladasP10Ref.current,
+        lucro_alvo_p10: config.lucro_alvo_p10 ?? 30,
+        aguardando_soros_p10: aguardandoSorosP10Ref.current,
+        entrada_soros_p10: entradaSorosP10Ref.current,
       });
 
       // Só marca o sinal como usado quando todos os guards passaram — evita bloquear
@@ -983,6 +1100,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
       operacaoCVelasEmAndamentoRef.current = true;
+
+      // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+      const aguardandoSorosCV = config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && !!direcaoSorosP10Ref.current;
+      const direcaoFinalCV: 'compra' | 'venda' = aguardandoSorosCV ? direcaoSorosP10Ref.current! : analise.direcao_operacao!;
 
       // M1: agendar para o segundo 0 exato do próximo candle
       preAquecerConexao();
@@ -1002,24 +1123,27 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Confirmação no disparo: cancelar apenas se a vela de sinal inverteu de direção
         // (verde→vermelho ou vermelho→verde) nos últimos segundos. Filtros menores (doji,
         // força) não devem cancelar — a direção detectada aos 57s ainda é válida.
-        const velasNoDisparo = velasAtuaisRef.current;
-        if (velasNoDisparo.length >= 2) {
-          const ultimaNoDisparo = velasNoDisparo[velasNoDisparo.length - 1];
-          const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e11
-            ? ultimaNoDisparo.timestamp / 1000
-            : ultimaNoDisparo?.timestamp ?? 0;
-          const sinalAindaNoFinal = Math.abs(ultimaTsDisparo - sinalVelaTsNorm) < 60;
-          const idxSinalNoDisparo = sinalAindaNoFinal
-            ? velasNoDisparo.length - 1
-            : velasNoDisparo.length - 2;
-          const velaNoDisparo = velasNoDisparo[idxSinalNoDisparo];
-          if (velaNoDisparo) {
-            const corEsperada = analise.direcao_operacao === 'compra' ? 'alta' : 'baixa';
-            const corAtual = velaNoDisparo.fechamento >= velaNoDisparo.abertura ? 'alta' : 'baixa';
-            if (corAtual !== corEsperada) {
-              console.warn(`[CVelas] Sinal cancelado no disparo: vela inverteu de ${corEsperada} para ${corAtual}`);
-              operacaoCVelasEmAndamentoRef.current = false;
-              return;
+        // P10 soros: direção já fixada pelo win anterior, não depende do sinal — pula confirmação.
+        if (!aguardandoSorosCV) {
+          const velasNoDisparo = velasAtuaisRef.current;
+          if (velasNoDisparo.length >= 2) {
+            const ultimaNoDisparo = velasNoDisparo[velasNoDisparo.length - 1];
+            const ultimaTsDisparo = ultimaNoDisparo?.timestamp > 1e11
+              ? ultimaNoDisparo.timestamp / 1000
+              : ultimaNoDisparo?.timestamp ?? 0;
+            const sinalAindaNoFinal = Math.abs(ultimaTsDisparo - sinalVelaTsNorm) < 60;
+            const idxSinalNoDisparo = sinalAindaNoFinal
+              ? velasNoDisparo.length - 1
+              : velasNoDisparo.length - 2;
+            const velaNoDisparo = velasNoDisparo[idxSinalNoDisparo];
+            if (velaNoDisparo) {
+              const corEsperada = analise.direcao_operacao === 'compra' ? 'alta' : 'baixa';
+              const corAtual = velaNoDisparo.fechamento >= velaNoDisparo.abertura ? 'alta' : 'baixa';
+              if (corAtual !== corEsperada) {
+                console.warn(`[CVelas] Sinal cancelado no disparo: vela inverteu de ${corEsperada} para ${corAtual}`);
+                operacaoCVelasEmAndamentoRef.current = false;
+                return;
+              }
             }
           }
         }
@@ -1030,13 +1154,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const segundosDesdeCV = totalSegCV % candleDuracaoCV;
         const duracao = Math.max(5, candleDuracaoCV - segundosDesdeCV);
 
-        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+        comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalCV, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
           .then(async id => {
             console.log(`[CVelas] Ordem enviada! ID: ${id}`);
-            ultimaDirecaoCVelasRef.current = analise.direcao_operacao!;
+            ultimaDirecaoCVelasRef.current = direcaoFinalCV;
             aguardandoResetCVelasRef.current = true;
             setOperacoesAbertas(prev => [...prev, {
-              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioCV, duracao, status: 'enviada',
+              id, ativo: config.ativo, direcao: direcaoFinalCV, valor, hora_envio: horaEnvioCV, duracao, status: 'enviada',
             }]);
             try {
               const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
@@ -1151,8 +1275,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       }
 
       const atingiuMeta = config.meta != null && automacao.lucro_acumulado >= config.meta;
-      const atingiuStop = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
-      const atingiuLimite = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+      const atingiuStop = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+      const atingiuLimite = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
       if (atingiuMeta || atingiuStop || atingiuLimite) return;
 
       const { valor, novo_ciclo } = calcularValorOperacao({
@@ -1166,6 +1290,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         ciclo_martingale: cicloMartingaleRef.current,
         max_martingale: config.max_martingale,
         banca_atual: config.gerenciamento === 'P6' ? (bancaInicioSessaoP6Ref.current || saldoAnteriorRef.current || 0) : undefined,
+        perdas_acumuladas_p10: perdasAcumuladasP10Ref.current,
+        lucro_alvo_p10: config.lucro_alvo_p10 ?? 30,
+        aguardando_soros_p10: aguardandoSorosP10Ref.current,
+        entrada_soros_p10: entradaSorosP10Ref.current,
       });
 
       ultimoSinalCRRef.current = analise.sinal_id;
@@ -1174,6 +1302,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       setValorOperacaoAtual(valor);
       valorAnteriorRef.current = valor;
       operacaoCREmAndamentoRef.current = true;
+
+      // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+      const aguardandoSorosCR = config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && !!direcaoSorosP10Ref.current;
+      const direcaoFinalCR: 'compra' | 'venda' = aguardandoSorosCR ? direcaoSorosP10Ref.current! : analise.direcao_operacao!;
 
       preAquecerConexao();
       if (pendingEntryTimerRef.current !== null) clearTimeout(pendingEntryTimerRef.current);
@@ -1194,7 +1326,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         // Confirmação no disparo: só para entradas agendadas via gate (segundos 57-59 → segundo 0).
         // Entradas imediatas (msAteVelaCR = 0, segundos 0-53) usam a última vela FECHADA como sinal —
         // seu estado é definitivo e não precisa de confirmação de cor.
-        if (msAteVelaCR > 0) {
+        // P10 soros: direção já fixada pelo win anterior, não depende do sinal — pula confirmação.
+        if (msAteVelaCR > 0 && !aguardandoSorosCR) {
           const velasNoDisparo = velasAtuaisRef.current;
           const velaDeSignalNoDisparo = velasNoDisparo
             .slice()
@@ -1225,13 +1358,13 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         const segundosDesde = totalSegCR % candleDuracaoCR;
         const duracao = Math.max(5, candleDuracaoCR - segundosDesde);
 
-        comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+        comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalCR, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
           .then(async id => {
             console.log(`[CR] Ordem enviada! ID: ${id}`);
-            ultimaDirecaoCRRef.current = analise.direcao_operacao!;
+            ultimaDirecaoCRRef.current = direcaoFinalCR;
             aguardandoResetCRRef.current = true;
             setOperacoesAbertas(prev => [...prev, {
-              id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvioCR, duracao, status: 'enviada',
+              id, ativo: config.ativo, direcao: direcaoFinalCR, valor, hora_envio: horaEnvioCR, duracao, status: 'enviada',
             }]);
             try {
               const saldoAposEnvio = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
@@ -1300,8 +1433,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
 
         if (ehMomentoDeExecutarCavaloTroia()) {
           const atingiuMetaCT = config.meta != null && automacao.lucro_acumulado >= config.meta;
-          const atingiuStopCT = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
-          const atingiuLimiteCT = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+          const atingiuStopCT = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+          const atingiuLimiteCT = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
           if (atingiuMetaCT || atingiuStopCT || atingiuLimiteCT) {
             console.warn(`[CavaloTroia] 🛑 Condição de encerramento no pré-execução: Meta=${atingiuMetaCT}, Stop=${atingiuStopCT}, Limite=${atingiuLimiteCT}`);
             return;
@@ -1328,6 +1461,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             payout: config.payout,
             ciclo_martingale: cicloMartingaleRef.current,
             max_martingale: config.max_martingale,
+            perdas_acumuladas_p10: perdasAcumuladasP10Ref.current,
+            lucro_alvo_p10: config.lucro_alvo_p10 ?? 30,
+            aguardando_soros_p10: aguardandoSorosP10Ref.current,
+            entrada_soros_p10: entradaSorosP10Ref.current,
           });
 
           const duracao = 120; // 2 minutos
@@ -1335,13 +1472,18 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           setValorOperacaoAtual(valor);
           valorAnteriorRef.current = valor;
 
+          // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+          const direcaoFinalCT: 'compra' | 'venda' = (config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && direcaoSorosP10Ref.current)
+            ? direcaoSorosP10Ref.current
+            : analise.direcao_operacao!;
+
           console.log(`[CavaloTroia] Janela ${analise.janela_atual} — ${analise.direcao_operacao.toUpperCase()} — R$ ${valor}`);
 
           const horaEnvio = new Date().toISOString();
 
-          comReconexao(() => executarOperacaoVorna(config.ativo, analise.direcao_operacao!, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+          comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalCT, valor, duracao, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
             .then(async id => {
-              setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analise.direcao_operacao!, valor, hora_envio: horaEnvio, duracao, status: 'enviada' }]);
+              setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: direcaoFinalCT, valor, hora_envio: horaEnvio, duracao, status: 'enviada' }]);
               try {
                 const s = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
                 saldoAnteriorRef.current = s + valor;
@@ -1534,7 +1676,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (!devEntrar && galeFinal.ativo && !galeFinal.disparado && galeFinal.minutoAlvo >= 0) {
           if (ehMomentoDeGale5min(galeFinal.minutoAlvo)) {
             const atingiuMetaGale = config.meta != null && automacao.lucro_acumulado >= config.meta;
-            const atingiuStopGale = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+            const atingiuStopGale = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
             if (atingiuMetaGale || atingiuStopGale) {
               console.warn(`[Q5min] 🛑 Meta ou stop atingido no pré-gale: Meta=${atingiuMetaGale}, Stop=${atingiuStopGale}`);
               return;
@@ -1584,7 +1726,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           if (ultimoExecutado5min.current === chave) return;
 
           const atingiuMetaQ5 = config.meta != null && automacao.lucro_acumulado >= config.meta;
-          const atingiuStopQ5 = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+          const atingiuStopQ5 = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
           if (atingiuMetaQ5 || atingiuStopQ5) {
             console.warn(`[Q5min] 🛑 Meta ou stop atingido no pré-entrada: Meta=${atingiuMetaQ5}, Stop=${atingiuStopQ5}`);
             return;
@@ -1628,10 +1770,18 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             ciclo_martingale: cicloMartingaleRef.current,
             max_martingale: config.max_martingale,
             banca_atual: config.gerenciamento === 'P6' ? bancaInicioSessaoP6Ref.current : undefined,
+            perdas_acumuladas_p10: perdasAcumuladasP10Ref.current,
+            lucro_alvo_p10: config.lucro_alvo_p10 ?? 30,
+            aguardando_soros_p10: aguardandoSorosP10Ref.current,
+            entrada_soros_p10: entradaSorosP10Ref.current,
           });
 
           const duracaoExec = config.duracao_expiracao || 60;
-          gale5minRef.current = { ativo: false, nivel: 0, direcao: analiseExec.direcao_operacao, minutoAlvo: -1, disparado: false };
+          // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+          const direcaoFinalQ5: 'compra' | 'venda' = (config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && direcaoSorosP10Ref.current)
+            ? direcaoSorosP10Ref.current
+            : analiseExec.direcao_operacao;
+          gale5minRef.current = { ativo: false, nivel: 0, direcao: direcaoFinalQ5, minutoAlvo: -1, disparado: false };
           ultimaAnalise5minRef.current = { analise: analiseExec, quadrante: quadranteExec };
           setCicloMartingale(novo_ciclo);
           setValorOperacaoAtual(valor);
@@ -1653,9 +1803,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
           console.log(`[Q5min] Entrada agendada para +${Math.round(msAteVelaQ5)}ms (virada de vela)`);
           pendingEntryTimerRef.current = window.setTimeout(() => {
             pendingEntryTimerRef.current = null;
-            comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoExec, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+            comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalQ5, valor, duracaoExec, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
               .then(async id => {
-                setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: analiseExec.direcao_operacao, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
+                setOperacoesAbertas(prev => [...prev, { id, ativo: config.ativo, direcao: direcaoFinalQ5, valor, hora_envio: horaEnvioReal, duracao: duracaoExec, status: 'enviada', preco_entrada: precoEntrada }]);
                 try {
                   const s = await obterSaldoRapido(config.tipo_conta ?? 'REAL');
                   saldoAnteriorRef.current = s + valor;
@@ -1689,7 +1839,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                     setOperacoesAbertas(prev => [...prev, {
                       id: novaPos.id,
                       ativo: config.ativo,
-                      direcao: analiseExec.direcao_operacao,
+                      direcao: direcaoFinalQ5,
                       valor,
                       hora_envio: horaEnvioReal,
                       duracao: duracaoExec,
@@ -1760,8 +1910,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         if (ultimoQuadranteExecutado.current === chaveExecucao) return;
 
         const atingiuMetaQ = config.meta != null && automacao.lucro_acumulado >= config.meta;
-        const atingiuStopQ = config.gerenciamento !== 'P6' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
-        const atingiuLimiteQ = config.gerenciamento !== 'P6' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
+        const atingiuStopQ = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && (automacao.perda_acumulada - automacao.lucro_acumulado) >= (config.valor_stop || Infinity);
+        const atingiuLimiteQ = config.gerenciamento !== 'P6' && config.gerenciamento !== 'P10' && !config.modo_continuo && automacao.operacoes_executadas >= automacao.operacoes_total;
         if (atingiuMetaQ || atingiuStopQ || atingiuLimiteQ) {
           console.warn(`[Quadrante] 🛑 Condição de encerramento no pré-execução: Meta=${atingiuMetaQ}, Stop=${atingiuStopQ}, Limite=${atingiuLimiteQ}`);
           return;
@@ -1821,6 +1971,11 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
               : (valorAnteriorRef.current || config.valor_por_operacao));
         setValorOperacaoAtual(valor);
 
+        // P10: na fase de soros, a direção da entrada é a mesma do main entry vencedor (não a do sinal)
+        const direcaoFinalQ: 'compra' | 'venda' = (config.gerenciamento === 'P10' && aguardandoSorosP10Ref.current && direcaoSorosP10Ref.current)
+          ? direcaoSorosP10Ref.current
+          : analiseExec.direcao_operacao;
+
         console.log(`[Quadrante] Q${quadranteExec} — ${analiseExec.direcao_operacao.toUpperCase()} — R$ ${valor}`);
 
         const duracaoQ = config.duracao_expiracao || 60;
@@ -1839,12 +1994,12 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
         console.log(`[Quadrante] Entrada agendada para +${Math.round(msAteVelaQ)}ms (virada de vela)`);
         pendingEntryTimerRef.current = window.setTimeout(() => {
           pendingEntryTimerRef.current = null;
-          comReconexao(() => executarOperacaoVorna(config.ativo, analiseExec.direcao_operacao, valor, duracaoQ, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
+          comReconexao(() => executarOperacaoVorna(config.ativo, direcaoFinalQ, valor, duracaoQ, config.instrumento_tipo, config.tipo_conta ?? 'REAL'))
             .then(async id => {
               const opAberta: OperacaoAberta = {
                 id,
                 ativo: config.ativo,
-                direcao: analiseExec.direcao_operacao,
+                direcao: direcaoFinalQ,
                 valor,
                 hora_envio: horaEnvioReal,
                 duracao: duracaoQ,
@@ -2243,6 +2398,9 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
                 setPerdasAcumuladasP6(perdasAcumuladasP6Ref.current);
               }
             }
+          } else if (automacao.config.gerenciamento === 'P10') {
+            const direcaoUsada = (aguardandoSorosP10Ref.current ? direcaoSorosP10Ref.current : opAtual.direcao) || 'compra';
+            processarResultadoP10(resultado, valorUsado, direcaoUsada, automacao.config);
           } else {
             const { valor: proximoValor, novo_ciclo } = calcularValorOperacao({
               estrategia: automacao.config.gerenciamento,
@@ -2495,7 +2653,7 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             ? automacao.perda_acumulada + Math.abs(diferenca)
             : automacao.perda_acumulada;
           const atingiuMetaNotif = automacao.config?.meta != null && novoLucroPreview >= automacao.config.meta;
-          const atingiuStopNotif = automacao.config?.gerenciamento !== 'P6' && !ehGaleProtegido && (novaPerdaPreview - novoLucroPreview) >= (automacao.config?.valor_stop || Infinity);
+          const atingiuStopNotif = automacao.config?.gerenciamento !== 'P6' && automacao.config?.gerenciamento !== 'P10' && !ehGaleProtegido && (novaPerdaPreview - novoLucroPreview) >= (automacao.config?.valor_stop || Infinity);
 
           if (atingiuMetaNotif || atingiuStopNotif) {
             const tituloFim = atingiuMetaNotif ? 'Meta Atingida!' : 'Stop Atingido';
@@ -2523,10 +2681,10 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
             const novoExecutadas = prev.operacoes_executadas + 1;
             const novoLucro = diferenca > 0 ? prev.lucro_acumulado + diferenca : prev.lucro_acumulado;
             const novaPerda = (!ehGaleProtegido && diferenca < 0) ? prev.perda_acumulada + Math.abs(diferenca) : prev.perda_acumulada;
-            const atingiuStop = prev.config?.gerenciamento !== 'P6' && !ehGaleProtegido && (novaPerda - novoLucro) >= (prev.config?.valor_stop || Infinity);
+            const atingiuStop = prev.config?.gerenciamento !== 'P6' && prev.config?.gerenciamento !== 'P10' && !ehGaleProtegido && (novaPerda - novoLucro) >= (prev.config?.valor_stop || Infinity);
             const atingiuMeta = prev.config?.meta != null && novoLucro >= prev.config.meta;
             const ehQ5min = prev.config?.estrategia === 'Quadrantes5min';
-            const atingiuLimite = prev.config?.gerenciamento !== 'P6' && !ehQ5min && !prev.config?.modo_continuo && novoExecutadas >= prev.operacoes_total;
+            const atingiuLimite = prev.config?.gerenciamento !== 'P6' && prev.config?.gerenciamento !== 'P10' && !ehQ5min && !prev.config?.modo_continuo && novoExecutadas >= prev.operacoes_total;
 
             return {
               ...prev,
@@ -2775,9 +2933,19 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
       entryMinute5minRef.current = -1;
       ultimoCandleFluxoRef.current = 0;
       setCicloMartingale(0);
+      // P10 (GDD 2.1): zera sessão/perdas/soros pendente
+      sessaoAtualP10Ref.current = 1;
+      perdasAcumuladasP10Ref.current = 0;
+      aguardandoSorosP10Ref.current = false;
+      entradaSorosP10Ref.current = 0;
+      direcaoSorosP10Ref.current = null;
+      setSessaoP10(1);
+      setPerdasP10(0);
       const valorInicialP6 = config.gerenciamento === 'P6'
         ? calcularP6Entradas(saldoAtual || config.valor_por_operacao, config.payout || 88)[0]
-        : config.valor_por_operacao;
+        : config.gerenciamento === 'P10'
+          ? calcularEntradaP10(0, config.lucro_alvo_p10 ?? 30, config.payout || 88)
+          : config.valor_por_operacao;
       setValorOperacaoAtual(valorInicialP6);
       setHistoricoQuadrantes([]);
       setEstadoFluxoVelas({ analise: null, historico_resultados: [] });
@@ -2952,6 +3120,8 @@ export function useVorna(supabaseUserId?: string, profile?: Profile | ProfileRow
     nivelP6: cicloMartingale + 1,
     bancaP6,
     perdasAcumuladasP6,
+    sessaoP10,
+    perdasP10,
     historicoQuadrantes,
     quadrante5minAtual,
     historicoQuadrantes5min,
